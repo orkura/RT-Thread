@@ -73,7 +73,7 @@ def IARWorkspace(target):
     # make an workspace
     workspace = target.replace('.ewp', '.eww')
     out = open(workspace, 'w')
-    xml = iar_workspace % target
+    xml = iar_workspace % os.path.basename(target)
     out.write(xml)
     out.close()
 

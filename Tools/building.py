@@ -54,6 +54,52 @@ Rtt_Root = ''
 TOOLS_ROOT = get_tools_root()
 Env = None
 
+# {target_name: (CROSS_TOOL, PLATFORM)}
+TARGET_TOOLCHAINS = {
+    'mdk': ('keil', 'armcc'),
+    'mdk4': ('keil', 'armcc'),
+    'mdk5': ('keil', 'armcc'),
+    'mdk6': ('armclang', 'armclang'),
+    'iar': ('iar', 'iccarm'),
+    'vs': ('msvc', 'cl'),
+    'vs2012': ('msvc', 'cl'),
+    'vsc': ('gcc', 'gcc'),
+    'vsc_workspace': ('gcc', 'gcc'),
+    'cb': ('keil', 'armcc'),
+    'ua': ('gcc', 'gcc'),
+    'cdk': ('gcc', 'gcc'),
+    'makefile': ('gcc', 'gcc'),
+    'eclipse': ('gcc', 'gcc'),
+    'ses': ('gcc', 'gcc'),
+    'cmake': ('gcc', 'gcc'),
+    'cmake-armclang': ('keil', 'armclang'),
+    'xmake': ('gcc', 'gcc'),
+    'codelite': ('gcc', 'gcc'),
+    'esp-idf': ('gcc', 'gcc'),
+    'zig': ('gcc', 'gcc'),
+}
+
+DEFAULT_PROJECT_NAMES = {
+    'mdk5': os.path.join('MDK5-ARM', 'project'),
+    'mdk6': os.path.join('MDK6-ARM', 'project'),
+    'iar': os.path.join('EWARM', 'project'),
+}
+
+
+def GetProjectName(target_name=None):
+    project_name = GetOption('project-name')
+    if project_name is not None:
+        return project_name
+
+    return DEFAULT_PROJECT_NAMES.get(target_name, 'project')
+
+
+def GetProjectFile(target_name, extension):
+    project_file = GetProjectName(target_name) + extension
+    project_directory = os.path.dirname(os.path.abspath(project_file))
+    os.makedirs(project_directory, exist_ok=True)
+    return project_file
+
 def PrepareBuilding(env, root_directory, has_libcpu=False, remove_components = []):
 
     global BuildOptions
@@ -92,27 +138,6 @@ def PrepareBuilding(env, root_directory, has_libcpu=False, remove_components = [
     if TOOLS_ROOT not in sys.path:
         sys.path.insert(0, TOOLS_ROOT)
 
-    # {target_name:(CROSS_TOOL, PLATFORM)}
-    tgt_dict = {'mdk':('keil', 'armcc'),
-                'mdk4':('keil', 'armcc'),
-                'mdk5':('keil', 'armcc'),
-                'iar':('iar', 'iccarm'),
-                'vs':('msvc', 'cl'),
-                'vs2012':('msvc', 'cl'),
-                'vsc' : ('gcc', 'gcc'),
-                'vsc_workspace':('gcc', 'gcc'),
-                'cb':('keil', 'armcc'),
-                'ua':('gcc', 'gcc'),
-                'cdk':('gcc', 'gcc'),
-                'makefile':('gcc', 'gcc'),
-                'eclipse':('gcc', 'gcc'),
-                'ses' : ('gcc', 'gcc'),
-                'cmake':('gcc', 'gcc'),
-                'cmake-armclang':('keil', 'armclang'),
-                'xmake':('gcc', 'gcc'),
-                'codelite' : ('gcc', 'gcc'),
-                'esp-idf': ('gcc', 'gcc'),
-                'zig':('gcc', 'gcc')}
     tgt_name = GetOption('target')
 
     if tgt_name:
@@ -124,11 +149,11 @@ def PrepareBuilding(env, root_directory, has_libcpu=False, remove_components = [
 
         SetOption('no_exec', 1)
         try:
-            rtconfig.CROSS_TOOL, rtconfig.PLATFORM = tgt_dict[tgt_name]
+            rtconfig.CROSS_TOOL, rtconfig.PLATFORM = TARGET_TOOLCHAINS[tgt_name]
             # replace the 'RTT_CC' to 'CROSS_TOOL'
             os.environ['RTT_CC'] = rtconfig.CROSS_TOOL
         except KeyError:
-            print('Unknow target: '+ tgt_name+'. Avaible targets: ' +', '.join(tgt_dict.keys()))
+            print('Unknow target: '+ tgt_name+'. Avaible targets: ' +', '.join(TARGET_TOOLCHAINS.keys()))
             sys.exit(1)
 
     exec_prefix = GetOption('exec-prefix')
@@ -816,17 +841,19 @@ def DoBuilding(target, objects):
 
 def GenTargetProject(program = None):
 
-    if GetOption('target') in ['mdk', 'mdk4', 'mdk5']:
+    target_name = GetOption('target')
+
+    if target_name in ['mdk', 'mdk4', 'mdk5', 'mdk6']:
         from targets.keil import MDK2Project, MDK4Project, MDK5Project, ARMCC_Version
 
-        if os.path.isfile('template.uvprojx') and GetOption('target') not in ['mdk4']: # Keil5
-            MDK5Project(Env, GetOption('project-name') + '.uvprojx', Projects)
+        if os.path.isfile('template.uvprojx') and target_name not in ['mdk4']: # Keil5
+            MDK5Project(Env, GetProjectFile(target_name, '.uvprojx'), Projects)
             print("Keil5 project is generating...")
-        elif os.path.isfile('template.uvproj') and GetOption('target') not in ['mdk5']: # Keil4
-            MDK4Project(Env, GetOption('project-name') + '.uvproj', Projects)
+        elif os.path.isfile('template.uvproj') and target_name not in ['mdk5', 'mdk6']: # Keil4
+            MDK4Project(Env, GetProjectFile(target_name, '.uvproj'), Projects)
             print("Keil4 project is generating...")
-        elif os.path.isfile('template.Uv2') and GetOption('target') not in ['mdk4', 'mdk5']: # Keil2
-            MDK2Project(Env, GetOption('project-name') + '.Uv2', Projects)
+        elif os.path.isfile('template.Uv2') and target_name not in ['mdk4', 'mdk5', 'mdk6']: # Keil2
+            MDK2Project(Env, GetProjectFile(target_name, '.Uv2'), Projects)
             print("Keil2 project is generating...")
         else:
             print ('No template project file found.')
@@ -834,72 +861,72 @@ def GenTargetProject(program = None):
         print("Keil Version: " + ARMCC_Version())
         print("Keil-MDK project has generated successfully!")
 
-    if GetOption('target') == 'iar':
+    if target_name == 'iar':
         from targets.iar import IARProject, IARVersion
         print("IAR Version: " + IARVersion())
-        IARProject(Env, GetOption('project-name') + '.ewp', Projects)
+        IARProject(Env, GetProjectFile(target_name, '.ewp'), Projects)
         print("IAR project has generated successfully!")
 
-    if GetOption('target') == 'vs':
+    if target_name == 'vs':
         from targets.vs import VSProject
-        VSProject(GetOption('project-name') + '.vcproj', Projects, program)
+        VSProject(GetProjectName(target_name) + '.vcproj', Projects, program)
 
-    if GetOption('target') == 'vs2012':
+    if target_name == 'vs2012':
         from targets.vs2012 import VS2012Project
-        VS2012Project(GetOption('project-name') + '.vcxproj', Projects, program)
+        VS2012Project(GetProjectName(target_name) + '.vcxproj', Projects, program)
 
-    if GetOption('target') == 'cb':
+    if target_name == 'cb':
         from targets.codeblocks import CBProject
-        CBProject(GetOption('project-name') + '.cbp', Projects, program)
+        CBProject(GetProjectName(target_name) + '.cbp', Projects, program)
 
-    if GetOption('target') == 'ua':
+    if target_name == 'ua':
         from targets.ua import PrepareUA
         PrepareUA(Projects, Rtt_Root, str(Dir('#')))
 
-    if GetOption('target') == 'vsc':
+    if target_name == 'vsc':
         from targets.vsc import GenerateVSCode
         GenerateVSCode(Env)
         if GetOption('cmsispack'):
             from vscpyocd import GenerateVSCodePyocdConfig
             GenerateVSCodePyocdConfig(GetOption('cmsispack'))
 
-    if GetOption('target') == 'vsc_workspace':
+    if target_name == 'vsc_workspace':
         from targets.vsc import GenerateVSCodeWorkspace
         GenerateVSCodeWorkspace(Env)
 
-    if GetOption('target') == 'cdk':
+    if target_name == 'cdk':
         from targets.cdk import CDKProject
-        CDKProject(GetOption('project-name') + '.cdkproj', Projects)
+        CDKProject(GetProjectName(target_name) + '.cdkproj', Projects)
 
-    if GetOption('target') == 'ses':
+    if target_name == 'ses':
         from targets.ses import SESProject
         SESProject(Env)
 
-    if GetOption('target') == 'makefile':
+    if target_name == 'makefile':
         from targets.makefile import TargetMakefile
         TargetMakefile(Env)
 
-    if GetOption('target') == 'eclipse':
+    if target_name == 'eclipse':
         from targets.eclipse import TargetEclipse
-        TargetEclipse(Env, GetOption('reset-project-config'), GetOption('project-name'))
+        TargetEclipse(Env, GetOption('reset-project-config'), GetProjectName(target_name))
 
-    if GetOption('target') == 'codelite':
+    if target_name == 'codelite':
         from targets.codelite import TargetCodelite
         TargetCodelite(Projects, program)
 
-    if GetOption('target') == 'cmake' or GetOption('target') == 'cmake-armclang':
+    if target_name == 'cmake' or target_name == 'cmake-armclang':
         from targets.cmake import CMakeProject
-        CMakeProject(Env, Projects, GetOption('project-name'))
+        CMakeProject(Env, Projects, GetProjectName(target_name))
 
-    if GetOption('target') == 'xmake':
+    if target_name == 'xmake':
         from targets.xmake import XMakeProject
         XMakeProject(Env, Projects)
 
-    if GetOption('target') == 'esp-idf':
+    if target_name == 'esp-idf':
         from targets.esp_idf import ESPIDFProject
         ESPIDFProject(Env, Projects)
 
-    if GetOption('target') == 'zig':
+    if target_name == 'zig':
         from targets.zigbuild import ZigBuildProject
         ZigBuildProject(Env, Projects)
 
@@ -930,7 +957,7 @@ def EndBuilding(target, program = None):
 
     BSP_ROOT = Dir('#').abspath
 
-    project_name = GetOption('project-name')
+    project_name = GetProjectName(GetOption('target'))
     project_path = GetOption('project-path')
 
     # 合并处理打包相关选项

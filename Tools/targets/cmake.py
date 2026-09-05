@@ -26,7 +26,60 @@ import re
 import utils
 import rtconfig
 from utils import _make_path_relative
-from collections import defaultdict, Counter
+from collections import defaultdict
+
+
+def _sanitize_cmake_identifier(name):
+    identifier = re.sub(r'[^A-Za-z0-9_]', '_', name.strip())
+    identifier = re.sub(r'_+', '_', identifier).strip('_')
+    if not identifier:
+        identifier = 'group'
+    if identifier[0].isdigit():
+        identifier = 'group_' + identifier
+    return identifier
+
+
+def _make_unique_group_names(groups):
+    group_names = {}
+    used_names = set()
+
+    for group in groups:
+        base_name = _sanitize_cmake_identifier(group['name'])
+        group_name = base_name
+        suffix = 2
+        while group_name.lower() in used_names:
+            group_name = '%s_%d' % (base_name, suffix)
+            suffix += 1
+
+        used_names.add(group_name.lower())
+        group_names[id(group)] = group_name
+
+    return group_names
+
+
+def _replace_build_directory(value, build_directory):
+    build_directory = os.path.normpath(build_directory).replace('\\', '/').rstrip('/')
+    if not build_directory or build_directory == '.':
+        return value
+
+    pattern = r'(?<![A-Za-z0-9_./-])%s(?=/)' % re.escape(build_directory)
+    return re.sub(pattern, '${CMAKE_BINARY_DIR}', value, flags=re.IGNORECASE)
+
+
+def _prefix_linker_script(link_flags, linker_option):
+    if not linker_option:
+        return link_flags
+
+    pattern = r'(?<!\S)(%s)\s*(?:"([^"]+)"|(\S+))' % re.escape(linker_option)
+
+    def replace_linker_script(match):
+        linker_script = match.group(2) or match.group(3)
+        if (not os.path.isabs(linker_script)
+                and not linker_script.startswith('${')):
+            linker_script = '${CMAKE_SOURCE_DIR}/' + linker_script
+        return '%s "%s"' % (match.group(1), linker_script)
+
+    return re.sub(pattern, replace_linker_script, link_flags)
 
 
 def GenerateCFiles(env, project, project_name):
@@ -69,9 +122,12 @@ def GenerateCFiles(env, project, project_name):
     else:
         CXXFLAGS = CFLAGS
     AFLAGS = env['ASFLAGS'].replace('\\', "/").replace('\"', "\\\"")
-    LFLAGS = env['LINKFLAGS'].replace('\\', "/").replace('\"', "\\\"")
+    LFLAGS = env['LINKFLAGS'].replace('\\', "/")
+    build_directory = utils.get_build_dir(env)
+    LFLAGS = _replace_build_directory(LFLAGS, build_directory)
     
-    POST_ACTION = rtconfig.POST_ACTION
+    POST_ACTION = rtconfig.POST_ACTION.replace('\\', '/')
+    POST_ACTION = _replace_build_directory(POST_ACTION, build_directory)
     # replace the tool name with the cmake variable
     for cmake_var, each_tool in tool_path_conv.items():
         tool_name = each_tool['name']
@@ -149,7 +205,9 @@ def GenerateCFiles(env, project, project_name):
                 if 'LIBS' in group.keys():
                     for f in group['LIBS']:
                         LINKER_LIBS += ' ' + f.replace("\\", "/") + '.lib'
-        cm_file.write("SET(CMAKE_EXE_LINKER_FLAGS \""+ re.sub(LINKER_FLAGS + r'(\s*)', LINKER_FLAGS + r' ${CMAKE_SOURCE_DIR}/', LFLAGS) + LINKER_LIBS + "\")\n\n")
+        LFLAGS = _prefix_linker_script(LFLAGS, LINKER_FLAGS)
+        cmake_link_flags = (LFLAGS + LINKER_LIBS).replace('"', '\\"')
+        cm_file.write("SET(CMAKE_EXE_LINKER_FLAGS \"" + cmake_link_flags + "\")\n\n")
 
         # get the c/cpp standard version from compilation flags
         # not support the version with alphabet in `-std` param yet
@@ -201,23 +259,16 @@ def GenerateCFiles(env, project, project_name):
             else:
                 libgroups.append(group)
 
-        # Process groups whose names differ only in capitalization.
-        # (Groups have same name should be merged into one before)
-        for group in libgroups:
-            group['alias'] = group['name'].lower()
-        names = [group['alias'] for group in libgroups]
-        counter = Counter(names)
-        names = [name for name in names if counter[name] > 1]
-        for group in libgroups:
-            if group['alias'] in names:
-                counter[group['alias']] -= 1
-                group['alias'] = f"{group['name']}_{counter[group['alias']]}"
-                print(f"Renamed {group['name']} to {group['alias']}")
-                group['name'] = group['alias']
+        group_names = _make_unique_group_names(project)
+        for group in project:
+            if group_names[id(group)] != group['name']:
+                print("Renamed CMake group '{}' to '{}'".format(
+                    group['name'], group_names[id(group)]))
 
         cm_file.write("# Library source files\n")
         for group in project:
-            cm_file.write("SET(RT_{:s}_SOURCES\n".format(group['name'].upper()))
+            cmake_group_name = group_names[id(group)]
+            cm_file.write("SET(RT_{:s}_SOURCES\n".format(cmake_group_name.upper()))
             for f in group['src']:
                 # use relative path
                 path = _make_path_relative(os.getcwd(), os.path.normpath(f.rfile().abspath))
@@ -232,7 +283,8 @@ def GenerateCFiles(env, project, project_name):
             if len(group['LIBPATH']) == 0:
                 continue
 
-            cm_file.write("SET(RT_{:s}_LINK_DIRS\n".format(group['name'].upper()))
+            cmake_group_name = group_names[id(group)]
+            cm_file.write("SET(RT_{:s}_LINK_DIRS\n".format(cmake_group_name.upper()))
             for f in group['LIBPATH']:
                 cm_file.write("\t"+ f.replace("\\", "/") + "\n" )
             cm_file.write(")\n\n")
@@ -245,9 +297,23 @@ def GenerateCFiles(env, project, project_name):
             if len(group['LOCAL_CPPDEFINES']) == 0:
                 continue
 
-            cm_file.write("SET(RT_{:s}_DEFINES\n".format(group['name'].upper()))
+            cmake_group_name = group_names[id(group)]
+            cm_file.write("SET(RT_{:s}_DEFINES\n".format(cmake_group_name.upper()))
             for f in group['LOCAL_CPPDEFINES']:
                 cm_file.write("\t"+ f.replace("\\", "/") + "\n" )
+            cm_file.write(")\n\n")
+
+        cm_file.write("# Library local include paths\n")
+        for group in libgroups + interfacelibgroups:
+            if not group.get('LOCAL_CPPPATH'):
+                continue
+
+            cmake_group_name = group_names[id(group)]
+            cm_file.write("SET(RT_{:s}_LOCAL_INCLUDE_DIRS\n".format(
+                cmake_group_name.upper()))
+            for include_path in group['LOCAL_CPPPATH']:
+                path = _make_path_relative(os.getcwd(), os.path.normpath(include_path))
+                cm_file.write('\t"' + path.replace("\\", "/") + '"\n')
             cm_file.write(")\n\n")
 
         cm_file.write("# Library dependencies\n")
@@ -258,21 +324,42 @@ def GenerateCFiles(env, project, project_name):
             if len(group['LIBS']) == 0:
                 continue
 
-            cm_file.write("SET(RT_{:s}_LIBS\n".format(group['name'].upper()))
+            cmake_group_name = group_names[id(group)]
+            cm_file.write("SET(RT_{:s}_LIBS\n".format(cmake_group_name.upper()))
             for f in group['LIBS']:
                 cm_file.write("\t"+ "{}\n".format(f.replace("\\", "/")))
             cm_file.write(")\n\n")
 
         cm_file.write("# Libraries\n")
         for group in libgroups:
+            cmake_group_name = group_names[id(group)]
             cm_file.write("ADD_LIBRARY(rtt_{:s} OBJECT ${{RT_{:s}_SOURCES}})\n"
-                          .format(group['name'], group['name'].upper()))
+                          .format(cmake_group_name, cmake_group_name.upper()))
 
         cm_file.write("\n")
 
         cm_file.write("# Interface libraries\n")
         for group in interfacelibgroups:
-            cm_file.write("ADD_LIBRARY(rtt_{:s} INTERFACE)\n".format(group['name']))
+            cmake_group_name = group_names[id(group)]
+            cm_file.write("ADD_LIBRARY(rtt_{:s} INTERFACE)\n".format(cmake_group_name))
+
+        cm_file.write("\n")
+
+        cm_file.write("# Library local include paths\n")
+        for group in libgroups:
+            if not group.get('LOCAL_CPPPATH'):
+                continue
+            cmake_group_name = group_names[id(group)]
+            cm_file.write(
+                "TARGET_INCLUDE_DIRECTORIES(rtt_{:s} PRIVATE ${{RT_{:s}_LOCAL_INCLUDE_DIRS}})\n"
+                .format(cmake_group_name, cmake_group_name.upper()))
+        for group in interfacelibgroups:
+            if not group.get('LOCAL_CPPPATH'):
+                continue
+            cmake_group_name = group_names[id(group)]
+            cm_file.write(
+                "TARGET_INCLUDE_DIRECTORIES(rtt_{:s} INTERFACE ${{RT_{:s}_LOCAL_INCLUDE_DIRS}})\n"
+                .format(cmake_group_name, cmake_group_name.upper()))
 
         cm_file.write("\n")
 
@@ -284,8 +371,9 @@ def GenerateCFiles(env, project, project_name):
             if len(group['LOCAL_CPPDEFINES']) == 0:
                 continue
 
+            cmake_group_name = group_names[id(group)]
             cm_file.write("TARGET_COMPILE_DEFINITIONS(rtt_{:s} PRIVATE ${{RT_{:s}_DEFINES}})\n"
-              .format(group['name'], group['name'].upper()))
+              .format(cmake_group_name, cmake_group_name.upper()))
 
         cm_file.write("\n")
 
@@ -298,8 +386,9 @@ def GenerateCFiles(env, project, project_name):
                 if len(group['LIBPATH']) == 0:
                     continue
 
+                cmake_group_name = group_names[id(group)]
                 cm_file.write("TARGET_LINK_DIRECTORIES(rtt_{:s} INTERFACE ${{RT_{:s}_LINK_DIRS}})\n"
-                              .format(group['name'], group['name'].upper()))
+                              .format(cmake_group_name, cmake_group_name.upper()))
 
             for group in libgroups:
                 if not 'LIBS' in group.keys():
@@ -308,8 +397,9 @@ def GenerateCFiles(env, project, project_name):
                 if len(group['LIBS']) == 0:
                     continue
 
+                cmake_group_name = group_names[id(group)]
                 cm_file.write("TARGET_LINK_LIBRARIES(rtt_{:s} INTERFACE ${{RT_{:s}_LIBS}})\n"
-                              .format(group['name'], group['name'].upper()))
+                              .format(cmake_group_name, cmake_group_name.upper()))
 
         cm_file.write("\n")
 
@@ -317,7 +407,7 @@ def GenerateCFiles(env, project, project_name):
 
         cm_file.write("TARGET_LINK_LIBRARIES(${CMAKE_PROJECT_NAME}.elf\n")
         for group in libgroups + interfacelibgroups:
-            cm_file.write("\trtt_{:s}\n".format(group['name']))
+            cm_file.write("\trtt_{:s}\n".format(group_names[id(group)]))
         cm_file.write(")\n\n")
 
         cm_file.write("ADD_CUSTOM_COMMAND(TARGET ${CMAKE_PROJECT_NAME}.elf POST_BUILD \n" + POST_ACTION + '\n)\n')
