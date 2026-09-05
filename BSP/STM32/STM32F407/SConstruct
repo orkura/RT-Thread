@@ -1,0 +1,87 @@
+import os
+import sys
+
+# Keep Python bytecode out of the BSP source tree during SCons builds.
+sys.dont_write_bytecode = True
+
+import rtconfig
+
+BSP_ROOT = Dir('#').abspath
+PROJECT_ROOT = os.path.normpath(os.path.join(BSP_ROOT, '..', '..', '..'))
+TOOLS_ROOT = os.path.join(PROJECT_ROOT, 'Tools')
+LIBRARIES_ROOT = os.path.join(PROJECT_ROOT, 'BSP', 'STM32', 'Libraries')
+
+RTT_ROOT = os.getenv('RTT_ROOT', os.path.join(PROJECT_ROOT, 'RT-Thread'))
+RTT_ROOT = os.path.abspath(RTT_ROOT)
+
+required_paths = [
+    os.path.join(TOOLS_ROOT, 'building.py'),
+    os.path.join(RTT_ROOT, 'src', 'SConscript'),
+    os.path.join(RTT_ROOT, 'libcpu', 'SConscript'),
+    os.path.join(RTT_ROOT, 'components', 'SConscript'),
+    os.path.join(LIBRARIES_ROOT, 'HAL_Drivers', 'SConscript'),
+]
+missing_paths = [path for path in required_paths if not os.path.exists(path)]
+if missing_paths:
+    raise FileNotFoundError('Missing build dependency:\n' + '\n'.join(missing_paths))
+
+sys.path.insert(0, TOOLS_ROOT)
+# Import shared SCons build helpers.
+from building import *
+
+BUILD_OUTPUT_DIR = rtconfig.BUILD_OUTPUT_DIR
+os.makedirs(BUILD_OUTPUT_DIR, exist_ok=True)
+SConsignFile(os.path.join(BUILD_OUTPUT_DIR, '.sconsign.dblite'))
+
+TARGET = os.path.join(BUILD_OUTPUT_DIR, 'rt-thread.' + rtconfig.TARGET_EXT)
+
+DefaultEnvironment(tools=[])
+# Select host-specific SCons build rules; the ARM toolchain is set below.
+host_tools = ['mingw'] if os.name == 'nt' else ['gcc']
+env = Environment(tools = host_tools,
+    AS = rtconfig.AS, ASFLAGS = rtconfig.AFLAGS,
+    CC = rtconfig.CC, CFLAGS = rtconfig.CFLAGS,
+    AR = rtconfig.AR, ARFLAGS = '-rc',
+    CXX = rtconfig.CXX, CXXFLAGS = rtconfig.CXXFLAGS,
+    LINK = rtconfig.LINK, LINKFLAGS = rtconfig.LFLAGS)
+env['BUILD_DIR'] = BUILD_OUTPUT_DIR
+env.PrependENVPath('PATH', rtconfig.EXEC_PATH)
+
+# IAR requires custom SCons command templates.
+if rtconfig.PLATFORM in ['iccarm']:
+    env.Replace(CCCOM = ['$CC $CFLAGS $CPPFLAGS $_CPPDEFFLAGS $_CPPINCFLAGS -o $TARGET $SOURCES'])
+    env.Replace(ARFLAGS = [''])
+    env.Replace(LINKCOM = env["LINKCOM"] + ' --map "' + rtconfig.MAP_FILE + '"')
+
+# Share build context with child SConscript files.
+Export('env')
+Export('RTT_ROOT')
+Export('rtconfig')
+Export('BSP_ROOT')
+Export('PROJECT_ROOT')
+
+# Prepare the build environment and load this BSP's root SConscript plus RT-Thread core modules.
+objs = PrepareBuilding(env, RTT_ROOT, has_libcpu=False)
+
+# Keep third-party RT-Thread kernel sources unchanged. ARMCC 5 diagnoses a
+# missing final newline and an existing integer-to-enum conversion as #1-D
+# and #188-D; suppress only these diagnostics and only for the Kernel group.
+if rtconfig.PLATFORM == 'armcc':
+    for project_group in Projects:
+        if project_group['name'] == 'Kernel':
+            project_group['LOCAL_CFLAGS'] = (
+                project_group.get('LOCAL_CFLAGS', '') +
+                ' --diag_suppress=1,188'
+            )
+
+# No BSP-specific library variant is required for SDK distribution.
+rtconfig.BSP_LIBRARY_TYPE = None
+
+# include common STM32 drivers
+objs.extend(SConscript(os.path.join(LIBRARIES_ROOT, 'HAL_Drivers', 'SConscript'),
+                       variant_dir=os.path.join(BUILD_OUTPUT_DIR, 'libraries', 'HAL_Drivers'),
+                       duplicate=0))
+
+# make a building
+env.Depends(TARGET, os.path.join(BSP_ROOT, rtconfig.LINK_SCRIPT))
+DoBuilding(TARGET, objs)

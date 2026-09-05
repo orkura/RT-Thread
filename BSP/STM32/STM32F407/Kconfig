@@ -1,0 +1,26 @@
+mainmenu "STM32F407 BSP Configuration"
+
+BSP_DIR := .
+PROJECT_DIR := ../../..
+RTT_DIR := $(PROJECT_DIR)/RT-Thread
+
+rsource "../Libraries/Kconfig"
+
+config SOC_STM32F407ZG
+    bool
+    select SOC_SERIES_STM32F4
+    select RT_USING_COMPONENTS_INIT
+    select RT_USING_USER_MAIN
+    default y
+
+rsource "Applications/Kconfig"
+rsource "Debug/Kconfig"
+
+rsource "$(RTT_DIR)/Kconfig"
+
+if SOC_STM32F407ZG && !RT_USING_NANO
+rsource "Board/Kconfig"
+endif
+
+# BSP-specific components own their Kconfig entries through this aggregator.
+rsource "Components/Kconfig"

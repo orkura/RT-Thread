@@ -1,0 +1,59 @@
+import os
+import rtconfig
+
+from building import *
+
+Import('BSP_ROOT')
+
+cwd = GetCurrentDir()
+
+src = [
+    'board.c',
+    os.path.join('Core', 'Src', 'stm32f4xx_hal_msp.c'),
+    os.path.join('Core', 'Src', 'system_stm32f4xx.c'),
+]
+
+startup_files = {
+    'gcc': os.path.join('Startup', 'GCC', 'startup_stm32f407xx.s'),
+    'armcc': os.path.join('Startup', 'MDK-ARM', 'startup_stm32f407xx.s'),
+    'armclang': os.path.join('Startup', 'MDK-ARM', 'startup_stm32f407xx.s'),
+    'iccarm': os.path.join('Startup', 'EWARM', 'startup_stm32f407xx.s'),
+}
+
+if rtconfig.PLATFORM not in startup_files:
+    raise ValueError('Unsupported startup platform: ' + rtconfig.PLATFORM)
+
+src.append(startup_files[rtconfig.PLATFORM])
+
+CPPPATH = [
+    cwd,
+    os.path.join(cwd, 'Core', 'Inc'),
+    os.path.join(cwd, 'Drivers', 'CMSIS', 'Core', 'Include'),
+    os.path.join(cwd, 'Drivers', 'CMSIS', 'Device', 'ST', 'STM32F4xx', 'Include'),
+]
+
+# The scatter file reserves optional RT-Thread registration tables. ARMCC
+# reports L6314W when a corresponding feature is disabled and its table is
+# therefore empty; keep the table definitions for future Kconfig changes.
+LINKFLAGS = ''
+if rtconfig.PLATFORM == 'armcc':
+    LINKFLAGS = ' --diag_suppress=L6314W'
+
+board_group = DefineGroup(
+    'Board',
+    src,
+    depend=[''],
+    CPPPATH=CPPPATH,
+    LINKFLAGS=LINKFLAGS,
+)
+
+group = []
+group += board_group
+group += SConscript(
+    os.path.join(cwd, 'Drivers', 'SConscript'),
+    variant_dir=os.path.join(BSP_ROOT, rtconfig.BUILD_OUTPUT_DIR,
+                             'Board', 'Drivers'),
+    duplicate=0,
+)
+
+Return('group')

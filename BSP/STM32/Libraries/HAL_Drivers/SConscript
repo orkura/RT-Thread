@@ -1,0 +1,23 @@
+Import('RTT_ROOT')
+Import('rtconfig')
+Import('BSP_ROOT')
+from building import *
+import os
+
+cwd = GetCurrentDir()
+group = []
+src = ['drv_common.c']
+path = [cwd]
+
+subdir = 'nano' if GetDepend(['RT_USING_NANO']) else 'drivers'
+group += SConscript(
+    os.path.join(cwd, subdir, 'SConscript'),
+    variant_dir=os.path.join(BSP_ROOT, rtconfig.BUILD_OUTPUT_DIR,
+                             'libraries', 'HAL_Drivers', subdir),
+    duplicate=0,
+)
+
+# These paths are implementation details shared only by the STM32 driver group.
+group = group + DefineGroup('Drivers', src, depend = [''], LOCAL_CPPPATH = path)
+
+Return('group')
