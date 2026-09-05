@@ -28,25 +28,26 @@ SCons PreProcessor 补丁功能测试脚本。测试与 building.py 的集成，
 ### test_cmake_generator.py
 验证 SCons 分组名能转换为合法且唯一的 CMake 变量和目标名。
 
+### test_path_compatibility.py
+验证 Windows/Linux 路径形式以及含空格的构建目录、工程目录和相对路径。
+
+### test_minimal_bsp.py
+在临时目录动态创建最小 BSP，并验证 MDK5、MDK6 和 IAR 工程的完整生成流程。
+
 ### mock_rtconfig.py
 用于测试的模拟 rtconfig 模块。在实际 rtconfig 不可用的测试场景中提供模拟的 rtconfig 模块。
 
 ## 使用方法
 
-要运行测试，请导航到此目录并执行：
+在仓库根目录执行完整测试套件：
 
 ```bash
-python test_preprocessor.py
-python test_refactor.py
-python test_tools_root.py
-python test_build_dir.py
-python test_mdk_toolchain.py
-python test_project_output.py
-python test_cmake_generator.py
+python -m unittest discover -s Tools/testcases -p "test_*.py" -v
 ```
 
 ## 说明
 
 - 这些测试脚本用于验证 RT-Thread 工具的功能
-- 可以独立运行或作为测试套件的一部分
+- 可以独立运行，也可以通过 `unittest discover` 作为完整测试套件运行
+- 最小 BSP 只在系统临时目录中创建，测试结束后自动删除，不向仓库写入 BSP 文件
 - mock_rtconfig.py 文件被其他测试脚本用来模拟 rtconfig 模块

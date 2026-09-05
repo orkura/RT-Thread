@@ -46,6 +46,7 @@ class ToolsRootTests(unittest.TestCase):
 
     def test_distribution_copies_tools_from_configured_root(self):
         configured_root = os.path.join(TESTS_ROOT, 'configured-tools')
+        rtt_root = os.path.join(TESTS_ROOT, 'RT-Thread Kernel')
         destination = os.path.join('dist', 'rt-thread', 'tools')
 
         with mock.patch.object(mkdist, 'bsp_copy_files'), \
@@ -61,7 +62,7 @@ class ToolsRootTests(unittest.TestCase):
             mkdist.MkDist(
                 program=None,
                 BSP_ROOT='bsp',
-                RTT_ROOT='rt-thread',
+                RTT_ROOT=rtt_root,
                 Env={'TOOLS_ROOT': configured_root},
                 project_name='project',
                 project_path='dist',
@@ -71,6 +72,14 @@ class ToolsRootTests(unittest.TestCase):
             os.path.abspath(configured_root),
             destination,
             mock.ANY,
+        )
+        copy_folder.assert_any_call(
+            os.path.join(rtt_root, 'components'),
+            os.path.join('dist', 'rt-thread', 'components'),
+        )
+        self.assertNotEqual(
+            os.path.abspath(configured_root),
+            os.path.abspath(rtt_root),
         )
 
     def test_xmake_reads_template_from_tools_and_writes_to_bsp(self):

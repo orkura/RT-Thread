@@ -36,5 +36,8 @@ jobs:
       - name: Install dependencies
         run: python -m pip install -r Tools/requirements.txt
 
-      - name: Validate Python tools
+      - name: Validate Python syntax
         run: python -m compileall -q -x "sconsui[.]py$" Tools
+
+      - name: Run Tools regression tests
+        run: python -m unittest discover -s Tools/testcases -p "test_*.py" -v
