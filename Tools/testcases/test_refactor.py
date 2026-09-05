@@ -6,8 +6,11 @@
 import sys
 import os
 
-# Add current directory to path
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Add the test doubles and relocated Tools directory to the import path.
+TESTS_ROOT = os.path.dirname(os.path.abspath(__file__))
+TOOLS_ROOT = os.path.normpath(os.path.dirname(TESTS_ROOT))
+sys.path.insert(0, TESTS_ROOT)
+sys.path.insert(0, TOOLS_ROOT)
 
 # Mock rtconfig module for testing
 import mock_rtconfig
@@ -20,7 +23,7 @@ def test_targets_import():
     try:
         # Test importing targets module
         import targets
-        print("✓ targets module imported successfully")
+        print("[OK] targets module imported successfully")
         
         # Test importing individual target modules
         target_modules = [
@@ -32,15 +35,15 @@ def test_targets_import():
         for module_name in target_modules:
             try:
                 module = getattr(targets, module_name)
-                print(f"✓ {module_name} module imported successfully")
+                print(f"[OK] {module_name} module imported successfully")
             except AttributeError as e:
-                print(f"✗ Failed to import {module_name}: {e}")
+                print(f"[FAIL] Failed to import {module_name}: {e}")
                 return False
         
         return True
         
     except ImportError as e:
-        print(f"✗ Failed to import targets module: {e}")
+        print(f"[FAIL] Failed to import targets module: {e}")
         return False
 
 def test_building_import():
@@ -50,19 +53,19 @@ def test_building_import():
     try:
         # Test importing building module
         import building
-        print("✓ building module imported successfully")
+        print("[OK] building module imported successfully")
         
         # Test if GenTargetProject function exists
         if hasattr(building, 'GenTargetProject'):
-            print("✓ GenTargetProject function found")
+            print("[OK] GenTargetProject function found")
         else:
-            print("✗ GenTargetProject function not found")
+            print("[FAIL] GenTargetProject function not found")
             return False
             
         return True
         
     except ImportError as e:
-        print(f"✗ Failed to import building module: {e}")
+        print(f"[FAIL] Failed to import building module: {e}")
         return False
 
 def test_target_functions():
@@ -72,24 +75,24 @@ def test_target_functions():
     try:
         # Test importing specific target functions
         from targets.keil import MDK4Project, MDK5Project
-        print("✓ Keil target functions imported successfully")
+        print("[OK] Keil target functions imported successfully")
         
         from targets.iar import IARProject
-        print("✓ IAR target functions imported successfully")
+        print("[OK] IAR target functions imported successfully")
         
         from targets.eclipse import TargetEclipse
-        print("✓ Eclipse target functions imported successfully")
+        print("[OK] Eclipse target functions imported successfully")
         
         from targets.cmake import CMakeProject
-        print("✓ CMake target functions imported successfully")
+        print("[OK] CMake target functions imported successfully")
         
         import targets.rt_studio
-        print("✓ RT-Studio target functions imported successfully")
+        print("[OK] RT-Studio target functions imported successfully")
         
         return True
         
     except ImportError as e:
-        print(f"✗ Failed to import target functions: {e}")
+        print(f"[FAIL] Failed to import target functions: {e}")
         return False
 
 def main():
@@ -111,11 +114,11 @@ def main():
     
     print("\n" + "=" * 40)
     if success:
-        print("✓ All tests passed! Refactoring is successful.")
+        print("[OK] All tests passed! Refactoring is successful.")
         return 0
     else:
-        print("✗ Some tests failed. Please check the errors above.")
+        print("[FAIL] Some tests failed. Please check the errors above.")
         return 1
 
 if __name__ == '__main__':
-    sys.exit(main()) 
+    sys.exit(main())

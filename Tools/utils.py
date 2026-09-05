@@ -26,6 +26,18 @@ import sys
 import os
 import re
 
+TOOLS_ROOT = os.path.normpath(os.path.dirname(os.path.abspath(__file__)))
+
+
+def get_tools_root(env=None):
+    """Return the configured tools directory or this module's directory."""
+    if env is not None:
+        configured_root = env.get('TOOLS_ROOT')
+        if configured_root:
+            return os.path.normpath(os.path.abspath(str(configured_root)))
+
+    return TOOLS_ROOT
+
 def splitall(loc):
     """
     Return a list of the path components in loc. (Used by relpath_).

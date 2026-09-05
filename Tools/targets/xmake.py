@@ -64,19 +64,16 @@ class XmakeProject:
         self.define = self.define[:-2]
 
     def generate_xmake_file(self):
-        if os.getenv('RTT_ROOT'):
-            RTT_ROOT = os.getenv('RTT_ROOT')
-        else:
-            RTT_ROOT = os.path.normpath(os.getcwd() + '/../../..')
-
-        template_path = os.path.join(RTT_ROOT, "tools", "targets", "xmake.lua")
+        tools_root = utils.get_tools_root(self.env)
+        template_path = os.path.join(tools_root, "targets", "xmake.lua")
         with open(template_path, "r") as f:
             data = f.read()
         data = Template(data)
         data = data.safe_substitute(toolchain=self.toolchain, sdkdir=self.sdkdir, bindir=self.bindir, src_path=self.src_path, inc_path=self.inc_path,
                                     define=self.define, cflags=self.cflags, cxxflags=self.cxxflags, asflags=self.asflags,
                                     ldflags=self.ldflags, target="rt-thread")
-        with open(os.path.join(os.path.dirname(__file__), "xmake.lua"), "w") as f:
+        output_path = os.path.join(os.path.abspath(self.env['BSP_ROOT']), "xmake.lua")
+        with open(output_path, "w") as f:
             f.write(data)
 
 

@@ -27,7 +27,7 @@ import sys
 # Add parent directory to path to import utils
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from utils import *
-from utils import _make_path_relative
+from utils import _make_path_relative, get_tools_root
 import rtconfig
 
 makefile = '''phony := all
@@ -42,7 +42,9 @@ endif
 
 $(if $(strip $(RTT_ROOT)),,$(error RTT_ROOT not defined))
 
-include $(RTT_ROOT)/tools/rtthread.mk
+$(if $(strip $(TOOLS_ROOT)),,$(error TOOLS_ROOT not defined))
+
+include $(TOOLS_ROOT)/rtthread.mk
 '''
 
 def TargetMakefile(env):
@@ -50,6 +52,7 @@ def TargetMakefile(env):
 
     BSP_ROOT = os.path.abspath(env['BSP_ROOT'])
     RTT_ROOT = os.path.abspath(env['RTT_ROOT'])
+    TOOLS_ROOT = get_tools_root(env)
 
     match_bsp = False
     if BSP_ROOT.startswith(RTT_ROOT):
@@ -59,6 +62,7 @@ def TargetMakefile(env):
 
     make.write('BSP_ROOT ?= %s\n' % BSP_ROOT.replace('\\', '/'))
     make.write('RTT_ROOT ?= %s\n' % RTT_ROOT.replace('\\', '/'))
+    make.write('TOOLS_ROOT ?= %s\n' % TOOLS_ROOT.replace('\\', '/'))
     make.write('\n')
 
     cross = os.path.abspath(rtconfig.EXEC_PATH)

@@ -29,6 +29,7 @@ import subprocess
 import shutil
 from shutil import ignore_patterns
 from SCons.Script import *
+from utils import get_tools_root
 
 def do_copy_file(src, dst):
     # check source file
@@ -218,7 +219,7 @@ def MkDist(program, BSP_ROOT, RTT_ROOT, Env, project_name, project_path):
 
     # copy tools directory
     print('=> tools')
-    do_copy_folder(os.path.join(RTT_ROOT, 'tools'), os.path.join(rtt_dir_path, 'tools'), ignore_patterns('*.pyc'))
+    do_copy_folder(get_tools_root(Env), os.path.join(rtt_dir_path, 'tools'), ignore_patterns('*.pyc'))
 
     do_copy_file(os.path.join(RTT_ROOT, 'Kconfig'), os.path.join(rtt_dir_path, 'Kconfig'))
     do_copy_file(os.path.join(RTT_ROOT, 'AUTHORS'), os.path.join(rtt_dir_path, 'AUTHORS'))

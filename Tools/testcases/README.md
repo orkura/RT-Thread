@@ -13,6 +13,9 @@ SCons PreProcessor 补丁功能测试脚本。测试与 building.py 的集成，
 - Building.py 导入
 - 目标函数调用
 
+### test_tools_root.py
+验证迁移后的 `Tools` 目录能够独立于 `RTT_ROOT` 解析，并支持从构建环境显式覆盖。
+
 ### mock_rtconfig.py
 用于测试的模拟 rtconfig 模块。在实际 rtconfig 不可用的测试场景中提供模拟的 rtconfig 模块。
 
@@ -23,10 +26,11 @@ SCons PreProcessor 补丁功能测试脚本。测试与 building.py 的集成，
 ```bash
 python test_preprocessor.py
 python test_refactor.py
+python test_tools_root.py
 ```
 
 ## 说明
 
 - 这些测试脚本用于验证 RT-Thread 工具的功能
 - 可以独立运行或作为测试套件的一部分
-- mock_rtconfig.py 文件被其他测试脚本用来模拟 rtconfig 模块 
+- mock_rtconfig.py 文件被其他测试脚本用来模拟 rtconfig 模块

@@ -37,7 +37,7 @@ import rtconfig
 import platform
 import logging
 from SCons.Script import *
-from utils import _make_path_relative
+from utils import _make_path_relative, get_tools_root
 from mkdist import do_copy_file
 from options import AddOptions
 from preprocessor import create_preprocessor_instance
@@ -46,6 +46,7 @@ from win32spawn import Win32Spawn
 BuildOptions = {}
 Projects = []
 Rtt_Root = ''
+TOOLS_ROOT = get_tools_root()
 Env = None
 
 def PrepareBuilding(env, root_directory, has_libcpu=False, remove_components = []):
@@ -73,15 +74,18 @@ def PrepareBuilding(env, root_directory, has_libcpu=False, remove_components = [
     # make an absolute root directory
     RTT_ROOT = Rtt_Root
     Export('RTT_ROOT')
+    Export('TOOLS_ROOT')
 
-    # set RTT_ROOT in ENV
+    # set project roots in ENV
     Env['RTT_ROOT'] = Rtt_Root
+    Env['TOOLS_ROOT'] = TOOLS_ROOT
     os.environ["RTT_DIR"] = Rtt_Root
     # set BSP_ROOT in ENV
     Env['BSP_ROOT'] = Dir('#').abspath
     os.environ["BSP_DIR"] = Dir('#').abspath
 
-    sys.path += os.path.join(Rtt_Root, 'tools')
+    if TOOLS_ROOT not in sys.path:
+        sys.path.insert(0, TOOLS_ROOT)
 
     # {target_name:(CROSS_TOOL, PLATFORM)}
     tgt_dict = {'mdk':('keil', 'armcc'),
@@ -358,7 +362,9 @@ def PrepareModuleBuilding(env, root_directory, bsp_directory):
         env['SPAWN'] = win32_spawn.spawn
 
     Env = env
-    Rtt_Root = root_directory
+    Rtt_Root = os.path.abspath(root_directory)
+    Env['RTT_ROOT'] = Rtt_Root
+    Env['TOOLS_ROOT'] = TOOLS_ROOT
 
     # parse bsp rtconfig.h to get used component
     PreProcessor = create_preprocessor_instance()
