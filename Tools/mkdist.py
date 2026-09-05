@@ -29,7 +29,7 @@ import subprocess
 import shutil
 from shutil import ignore_patterns
 from SCons.Script import *
-from utils import get_tools_root
+from utils import get_build_dir, get_tools_root
 
 def do_copy_file(src, dst):
     # check source file
@@ -94,10 +94,32 @@ def walk_kconfig(RTT_ROOT, source_list):
             pathfile = os.path.join(parent, 'KConfig')
             source_list.append(pathfile)
 
-def bsp_copy_files(bsp_root, dist_dir):
+def bsp_copy_files(bsp_root, dist_dir, build_dir='build'):
     # copy BSP files
+    ignored_names = [
+        'build', '__pycache__', 'dist', '*.pyc', '*.old', '*.map',
+        'rtthread.bin', '.sconsign.dblite', '*.elf', '*.axf', 'cconfig.h'
+    ]
+
+    bsp_root_abs = os.path.abspath(bsp_root)
+    build_path = str(build_dir)
+    if not os.path.isabs(build_path):
+        build_path = os.path.join(bsp_root_abs, build_path)
+    build_path = os.path.abspath(build_path)
+
+    try:
+        common_root = os.path.commonpath([bsp_root_abs, build_path])
+    except ValueError:
+        common_root = ''
+
+    if os.path.normcase(common_root) == os.path.normcase(bsp_root_abs):
+        relative_build_path = os.path.relpath(build_path, bsp_root_abs)
+        build_root_name = relative_build_path.split(os.sep, 1)[0]
+        if build_root_name not in ('.', os.pardir) and build_root_name not in ignored_names:
+            ignored_names.append(build_root_name)
+
     do_copy_folder(os.path.join(bsp_root), dist_dir,
-        ignore_patterns('build', '__pycache__', 'dist', '*.pyc', '*.old', '*.map', 'rtthread.bin', '.sconsign.dblite', '*.elf', '*.axf', 'cconfig.h'))
+        ignore_patterns(*ignored_names))
 
 def bsp_update_sconstruct(dist_dir):
     with open(os.path.join(dist_dir, 'SConstruct'), 'r') as f:
@@ -187,7 +209,7 @@ def MkDist(program, BSP_ROOT, RTT_ROOT, Env, project_name, project_path):
 
     # copy BSP files
     print('=> %s' % os.path.basename(BSP_ROOT))
-    bsp_copy_files(BSP_ROOT, dist_dir)
+    bsp_copy_files(BSP_ROOT, dist_dir, get_build_dir(Env))
 
     # do bsp special dist handle
     if 'dist_handle' in Env:

@@ -37,7 +37,12 @@ import rtconfig
 import platform
 import logging
 from SCons.Script import *
-from utils import _make_path_relative, get_tools_root
+from utils import (
+    _make_path_relative,
+    get_build_dir,
+    get_compile_commands_path,
+    get_tools_root,
+)
 from mkdist import do_copy_file
 from options import AddOptions
 from preprocessor import create_preprocessor_instance
@@ -325,26 +330,27 @@ def PrepareBuilding(env, root_directory, has_libcpu=False, remove_components = [
     # we need to seperate the variant_dir for BSPs and the kernels. BSPs could
     # have their own components etc. If they point to the same folder, SCons
     # would find the wrong source code to compile.
-    bsp_vdir = 'build'
-    kernel_vdir = 'build/kernel'
+    bsp_vdir = get_build_dir(env)
+    kernel_vdir = os.path.join(bsp_vdir, 'kernel')
     # board build script
     objs = SConscript('SConscript', variant_dir=bsp_vdir, duplicate=0)
     # include kernel
-    objs.extend(SConscript(Rtt_Root + '/src/SConscript', variant_dir=kernel_vdir + '/src', duplicate=0))
+    objs.extend(SConscript(Rtt_Root + '/src/SConscript',
+                           variant_dir=os.path.join(kernel_vdir, 'src'), duplicate=0))
     # include libcpu
     if not has_libcpu:
         objs.extend(SConscript(Rtt_Root + '/libcpu/SConscript',
-                    variant_dir=kernel_vdir + '/libcpu', duplicate=0))
+                    variant_dir=os.path.join(kernel_vdir, 'libcpu'), duplicate=0))
 
     # include components
     objs.extend(SConscript(Rtt_Root + '/components/SConscript',
-                           variant_dir=kernel_vdir + '/components',
+                           variant_dir=os.path.join(kernel_vdir, 'components'),
                            duplicate=0,
                            exports='remove_components'))
     # include testcases
     if os.path.isfile(os.path.join(Rtt_Root, 'examples/utest/testcases/SConscript')):
         objs.extend(SConscript(Rtt_Root + '/examples/utest/testcases/SConscript',
-                           variant_dir=kernel_vdir + '/examples/utest/testcases',
+                           variant_dir=os.path.join(kernel_vdir, 'examples', 'utest', 'testcases'),
                            duplicate=0))
 
     return objs
@@ -779,10 +785,10 @@ def DoBuilding(target, objects):
 
                 break
     else:
-        # generate build/compile_commands.json
+        # Generate compile_commands.json in the configured build directory.
         if GetOption('cdb') and utils.VerTuple(SCons.__version__) >= (4, 0, 0):
             Env.Tool("compilation_db")
-            Env.CompilationDatabase('build/compile_commands.json')
+            Env.CompilationDatabase(get_compile_commands_path(Env))
 
         # remove source files with local flags setting
         for group in Projects:

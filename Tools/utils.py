@@ -27,6 +27,7 @@ import os
 import re
 
 TOOLS_ROOT = os.path.normpath(os.path.dirname(os.path.abspath(__file__)))
+DEFAULT_BUILD_DIR = 'build'
 
 
 def get_tools_root(env=None):
@@ -37,6 +38,21 @@ def get_tools_root(env=None):
             return os.path.normpath(os.path.abspath(str(configured_root)))
 
     return TOOLS_ROOT
+
+
+def get_build_dir(env=None):
+    """Return the SCons build directory while preserving relative paths."""
+    if env is not None:
+        configured_dir = env.get('BUILD_DIR')
+        if configured_dir:
+            return os.path.normpath(str(configured_dir))
+
+    return DEFAULT_BUILD_DIR
+
+
+def get_compile_commands_path(env=None):
+    """Return compile_commands.json inside the configured build directory."""
+    return os.path.join(get_build_dir(env), 'compile_commands.json')
 
 def splitall(loc):
     """
