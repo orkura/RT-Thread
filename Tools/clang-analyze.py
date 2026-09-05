@@ -18,6 +18,7 @@ import SCons.Tool
 import SCons.Util
 
 import rtconfig
+from utils import get_build_dir
 
 def generate(env):
     assert(rtconfig.CROSS_TOOL == 'clang-analyze')
@@ -43,7 +44,7 @@ def generate(env):
     env['ENV']['CCC_CXX'] = 'clang++'
 
     # setup the output dir and format
-    env['ENV']['CCC_ANALYZER_HTML'] = './build/'
+    env['ENV']['CCC_ANALYZER_HTML'] = os.path.join('.', get_build_dir(env)) + os.sep
     env['ENV']['CCC_ANALYZER_OUTPUT_FORMAT'] = 'html'
 
     # Some setting from the platform also have to be overridden:

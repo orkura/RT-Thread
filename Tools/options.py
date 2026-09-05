@@ -45,7 +45,7 @@ def AddOptions():
     AddOption('--project-name',
                 dest = 'project-name',
                 type = 'string',
-                default = "project",
+                default = None,
                 help = 'set project name')
     AddOption('--cscope',
                 dest = 'cscope',
@@ -73,7 +73,7 @@ def AddOptions():
     AddOption('--target',
                 dest = 'target',
                 type = 'string',
-                help = 'set target project: mdk/mdk4/mdk5/iar/vs/vsc/ua/cdk/ses/makefile/eclipse/codelite/cmake/vsc_workspace')
+                help = 'set target project: mdk/mdk4/mdk5/mdk6/iar/vs/vsc/ua/cdk/ses/makefile/eclipse/codelite/cmake/vsc_workspace')
     AddOption('--cmsispack',
                 dest = 'cmsispack',
                 type = 'string',

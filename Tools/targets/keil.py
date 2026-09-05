@@ -23,9 +23,11 @@
 #
 
 import os
+import re
 import sys
 import string
 import shutil
+import subprocess
 
 import xml.etree.ElementTree as etree
 from xml.etree.ElementTree import SubElement
@@ -33,6 +35,109 @@ from utils import _make_path_relative
 from utils import xml_indent
 
 fs_encoding = sys.getfilesystemencoding()
+
+
+def _read_arm_compiler_info(platform, exec_path):
+    """Read the product, component and tool versions from an Arm compiler."""
+    if platform == 'armcc':
+        command = [os.path.join(exec_path, 'armcc.exe')]
+    elif platform == 'armclang':
+        command = [os.path.join(exec_path, 'armclang.exe'), '--version']
+    else:
+        return None
+
+    if not os.path.isfile(command[0]):
+        return None
+
+    try:
+        child = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = child.communicate()
+    except OSError:
+        return None
+
+    output = stdout if stdout else stderr
+    if not isinstance(output, str):
+        output = output.decode('utf-8', errors='replace')
+
+    info = {}
+    for field in ('Product', 'Component', 'Tool'):
+        match = re.search(r'^%s:\s*(.+?)\s*$' % field, output, re.MULTILINE | re.IGNORECASE)
+        if match is None:
+            return None
+        info[field.lower()] = match.group(1).strip()
+
+    return info
+
+
+def _format_arm_compiler_descriptor(platform, compiler_info):
+    """Convert compiler output to the descriptor stored in a uvprojx file."""
+    component = compiler_info['component']
+    version_match = re.search(r'(\d+)\.(\d+)', component)
+    if version_match is None:
+        return None
+
+    major, minor = version_match.groups()
+    version_match = re.search(
+        r'(\d+\.\d+(?:\s+update\s+\d+)?(?:\s+\(build\s+\d+\))?)',
+        component,
+        re.IGNORECASE,
+    )
+    version_text = version_match.group(1) if version_match else '%s.%s' % (major, minor)
+
+    if platform == 'armclang':
+        version_code = '%d%02d0000' % (int(major), int(minor))
+        compiler_name = 'ARMCLANG'
+    elif platform == 'armcc':
+        build_match = re.search(r'\(build\s+(\d+)\)', component, re.IGNORECASE)
+        build = int(build_match.group(1)) if build_match else 0
+        version_code = '%d%02d%04d' % (int(major), int(minor), build)
+        compiler_name = 'ARMCC'
+    else:
+        return None
+
+    return '%s::V%s::%s' % (version_code, version_text, compiler_name)
+
+
+def ConfigureMDKCompiler(tree, platform, compiler_info=None):
+    """Keep the uvprojx compiler selection consistent with the SCons target."""
+    target = tree.find('Targets/Target')
+    if target is None:
+        raise ValueError('Invalid Keil project: Targets/Target is missing')
+
+    use_armclang = platform == 'armclang'
+    if not use_armclang and platform != 'armcc':
+        return
+
+    uac6 = target.find('uAC6')
+    if uac6 is None:
+        uac6 = SubElement(target, 'uAC6')
+    uac6.text = '1' if use_armclang else '0'
+
+    compiler_nodes = [
+        node for node in (target.find('pCCUsed'), target.find('pArmCC'))
+        if node is not None
+    ]
+
+    if compiler_info is None:
+        import rtconfig
+        compiler_info = _read_arm_compiler_info(platform, rtconfig.EXEC_PATH)
+
+    if compiler_info is None:
+        expected_compiler = 'ARMCLANG' if use_armclang else 'ARMCC'
+        for compiler_node in compiler_nodes:
+            compiler_family = (compiler_node.text or '').rsplit('::', 1)[-1].upper()
+            if compiler_family in ('ARMCC', 'ARMCLANG') and compiler_family != expected_compiler:
+                target.remove(compiler_node)
+        return
+
+    descriptor = _format_arm_compiler_descriptor(platform, compiler_info)
+    if descriptor is None:
+        return
+
+    if not compiler_nodes:
+        compiler_nodes.append(SubElement(target, 'pCCUsed'))
+    for compiler_node in compiler_nodes:
+        compiler_node.text = descriptor
 
 def _get_filetype(fn):
     if fn.rfind('.cpp') != -1 or fn.rfind('.cxx') != -1:
@@ -193,7 +298,9 @@ def MDK4AddGroup(ProjectFiles, parent, name, files, project_path, group_scons):
             MiscControls_text = MiscControls_text + group_scons['LOCAL_CXXFLAGS']
         if 'LOCAL_CCFLAGS' in group_scons:
             MiscControls_text = MiscControls_text + group_scons['LOCAL_CCFLAGS']
-        if MiscControls_text != ' ' or ('LOCAL_CPPDEFINES' in group_scons):
+        if (MiscControls_text != ' '
+                or 'LOCAL_CPPDEFINES' in group_scons
+                or 'LOCAL_CPPPATH' in group_scons):
             FileOption     = SubElement(file,  'FileOption')
             FileArmAds     = SubElement(FileOption, 'FileArmAds')
             Cads            = SubElement(FileArmAds, 'Cads')
@@ -353,6 +460,9 @@ def MDK5Project(env, target, script):
 
     template_tree = etree.parse('template.uvprojx')
 
+    import rtconfig
+    ConfigureMDKCompiler(template_tree, rtconfig.PLATFORM)
+
     MDK45Project(env, template_tree, target, script)
 
     # remove project.uvopt file
@@ -373,10 +483,11 @@ def MDK5Project(env, target, script):
                 os.remove(log_file_path)
             log_thread = threading.Thread(target=monitor_log_file, args=(log_file_path,))
             log_thread.start()
-            cmd = 'UV4.exe -b project.uvprojx -q -j0 -t '+ target_name.text +' -o '+log_file_path
+            cmd = ['UV4.exe', '-b', os.path.abspath(target), '-q', '-j0',
+                   '-t', target_name.text, '-o', log_file_path]
             print('Start to build keil project')
-            print(cmd)
-            os.system(cmd)
+            print(subprocess.list2cmdline(cmd))
+            subprocess.call(cmd)
         else:
             print('UV4.exe is not available, please check your keil installation')
 
@@ -475,39 +586,13 @@ def MDK2Project(env, target, script):
 
 def ARMCC_Version():
     import rtconfig
-    import subprocess
-    import re
 
-    path = rtconfig.EXEC_PATH
-    if(rtconfig.PLATFORM == 'armcc'):
-        path = os.path.join(path, 'armcc.exe')
-    elif(rtconfig.PLATFORM == 'armclang'):
-        path = os.path.join(path, 'armlink.exe')
-
-    if os.path.exists(path):
-        cmd = path
-    else:
+    compiler_info = _read_arm_compiler_info(rtconfig.PLATFORM, rtconfig.EXEC_PATH)
+    if compiler_info is None:
         return "0.0"
 
-    child = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-    stdout, stderr = child.communicate()
-
-    '''
-    example stdout:
-    Product: MDK Plus 5.24
-    Component: ARM Compiler 5.06 update 5 (build 528)
-    Tool: armcc [4d3621]
-
-    return version: MDK Plus 5.24/ARM Compiler 5.06 update 5 (build 528)/armcc [4d3621]
-    '''
-    if not isinstance(stdout, str):
-        stdout = str(stdout, 'utf8') # Patch for Python 3
-    version_Product = re.search(r'Product: (.+)', stdout).group(1)
-    version_Product = version_Product[:-1]
-    version_Component = re.search(r'Component: (.*)', stdout).group(1)
-    version_Component = version_Component[:-1]
-    version_Tool = re.search(r'Tool: (.*)', stdout).group(1)
-    version_Tool = version_Tool[:-1]
-    version_str_format = '%s/%s/%s'
-    version_str = version_str_format % (version_Product, version_Component, version_Tool)
-    return version_str
+    return '%s/%s/%s' % (
+        compiler_info['product'],
+        compiler_info['component'],
+        compiler_info['tool'],
+    )
