@@ -1,0 +1,5 @@
+menu "Application"
+
+orsource "*/Kconfig"
+
+endmenu

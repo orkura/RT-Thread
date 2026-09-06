@@ -1,0 +1,22 @@
+import os
+
+from building import *
+
+Import('BSP_ROOT')
+Import('rtconfig')
+
+cwd = GetCurrentDir()
+variant_root = os.path.join(BSP_ROOT, rtconfig.BUILD_OUTPUT_DIR,
+                            'project', 'debug')
+objs = []
+
+for item in sorted(os.listdir(cwd)):
+    script = os.path.join(cwd, item, 'SConscript')
+    if os.path.isfile(script):
+        objs += SConscript(
+            script,
+            variant_dir=os.path.join(variant_root, item),
+            duplicate=0,
+        )
+
+Return('objs')

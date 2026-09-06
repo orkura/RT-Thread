@@ -1,0 +1,53 @@
+import os
+
+from building import *
+
+Import('env')
+Import('rtconfig')
+
+env.AppendUnique(CPPDEFINES=['STM32F407xx'])
+
+objs = []
+
+# Include BSP-local applications.
+cwd = GetCurrentDir()
+applications_script = os.path.join(cwd, 'Applications', 'SConscript')
+if not os.path.isfile(applications_script):
+    raise FileNotFoundError('Missing module SConscript: ' + applications_script)
+objs += SConscript(
+    applications_script,
+    variant_dir=os.path.join('project', 'applications'),
+    duplicate=0,
+)
+
+# Include BSP-local debug helpers.
+debug_script = os.path.join(cwd, 'Debug', 'SConscript')
+if not os.path.isfile(debug_script):
+    raise FileNotFoundError('Missing module SConscript: ' + debug_script)
+objs += SConscript(
+    debug_script,
+    variant_dir=os.path.join('project', 'debug'),
+    duplicate=0,
+)
+
+# Include board support sources after applications and debug helpers.
+board_script = os.path.join(cwd, 'Board', 'SConscript')
+if not os.path.isfile(board_script):
+    raise FileNotFoundError('Missing module SConscript: ' + board_script)
+objs += SConscript(
+    board_script,
+    variant_dir=os.path.join('project', 'board'),
+    duplicate=0,
+)
+
+# Include BSP-specific components.
+components_script = os.path.join(cwd, 'Components', 'SConscript')
+if not os.path.isfile(components_script):
+    raise FileNotFoundError('Missing module SConscript: ' + components_script)
+objs += SConscript(
+    components_script,
+    variant_dir=os.path.join('project', 'components'),
+    duplicate=0,
+)
+
+Return('objs')

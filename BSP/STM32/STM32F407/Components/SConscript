@@ -1,0 +1,18 @@
+import os
+
+from building import *
+
+Import('BSP_ROOT')
+Import('rtconfig')
+
+cwd = GetCurrentDir()
+variant_root = os.path.join(BSP_ROOT, rtconfig.BUILD_OUTPUT_DIR,
+                            'project', 'components')
+objs = []
+
+# Register each BSP-specific component explicitly, for example:
+# objs.extend(SConscript(os.path.join(cwd, 'MotorControl', 'SConscript'),
+#                        variant_dir=os.path.join(variant_root, 'MotorControl'),
+#                        duplicate=0))
+
+Return('objs')

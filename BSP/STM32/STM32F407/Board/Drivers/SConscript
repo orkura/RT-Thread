@@ -1,0 +1,88 @@
+import os
+import re
+
+from building import *
+
+Import('rtconfig')
+
+cwd = GetCurrentDir()
+board_root = os.path.dirname(cwd)
+hal_root = os.path.join(cwd, 'STM32F4xx_HAL_Driver')
+hal_src_root = os.path.join(hal_root, 'Src')
+hal_config = os.path.join(board_root, 'Core', 'Inc', 'stm32f4xx_hal_conf.h')
+
+if not os.path.isfile(hal_config):
+    raise FileNotFoundError('Missing CubeMX HAL configuration: ' + hal_config)
+
+# Use the CubeMX HAL configuration as the source of truth. Regenerating
+# stm32f4xx_hal_conf.h automatically updates the HAL modules built here.
+with open(hal_config, 'r', encoding='utf-8') as config_file:
+    config_text = config_file.read()
+
+enabled_modules = set(re.findall(
+    r'^\s*#define\s+HAL_([A-Z0-9]+)_MODULE_ENABLED\b',
+    config_text,
+    re.MULTILINE,
+))
+
+src = [os.path.join('STM32F4xx_HAL_Driver', 'Src', 'stm32f4xx_hal.c')]
+
+for module in sorted(enabled_modules):
+    prefix = 'stm32f4xx_hal_' + module.lower()
+    module_sources = [
+        os.path.join('STM32F4xx_HAL_Driver', 'Src', name)
+        for name in os.listdir(hal_src_root)
+        if name.startswith(prefix) and name.endswith('.c')
+    ]
+
+    if not module_sources:
+        raise FileNotFoundError('Missing HAL source for module: ' + module)
+
+    src.extend(module_sources)
+
+# Some HAL modules use low-level implementation files that are not selected
+# directly by stm32f4xx_hal_conf.h.
+ll_dependencies = {
+    'HCD': ['stm32f4xx_ll_usb.c'],
+    'PCD': ['stm32f4xx_ll_usb.c'],
+    'SD': ['stm32f4xx_ll_sdmmc.c'],
+    'MMC': ['stm32f4xx_ll_sdmmc.c'],
+    'SRAM': ['stm32f4xx_ll_fsmc.c'],
+    'NOR': ['stm32f4xx_ll_fsmc.c'],
+    'NAND': ['stm32f4xx_ll_fsmc.c'],
+    'PCCARD': ['stm32f4xx_ll_fsmc.c'],
+    'SDRAM': ['stm32f4xx_ll_fmc.c'],
+}
+
+for module, files in ll_dependencies.items():
+    if module in enabled_modules:
+        src.extend(os.path.join('STM32F4xx_HAL_Driver', 'Src', name)
+                   for name in files)
+
+src = sorted(set(src))
+
+CPPPATH = [
+    os.path.join(board_root, 'Core', 'Inc'),
+    os.path.join(hal_root, 'Inc'),
+    os.path.join(hal_root, 'Inc', 'Legacy'),
+    os.path.join(cwd, 'CMSIS', 'Core', 'Include'),
+    os.path.join(cwd, 'CMSIS', 'Device', 'ST', 'STM32F4xx', 'Include'),
+]
+
+# STM32's shared HAL keeps compatibility parameters that are unused in the
+# single-bank STM32F407 variants. Keep this suppression local to vendor HAL;
+# BSP code, components and packages retain the global GCC warning policy.
+LOCAL_CFLAGS = ''
+if rtconfig.PLATFORM == 'gcc':
+    LOCAL_CFLAGS = ' -Wno-unused-parameter'
+
+group = DefineGroup(
+    'STM32F4 HAL',
+    src,
+    depend=['SOC_STM32F407ZG'],
+    CPPPATH=CPPPATH,
+    CPPDEFINES=['USE_HAL_DRIVER'],
+    LOCAL_CFLAGS=LOCAL_CFLAGS,
+)
+
+Return('group')

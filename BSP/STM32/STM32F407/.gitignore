@@ -1,0 +1,102 @@
+# RT-Thread generated configuration.
+/.config*
+/cconfig.h
+
+# SCons, CMake, and Ninja generated state.
+/.sconsign*
+/*.dblite
+/[Bb]uild/
+/[Oo]ut/
+/[Dd]ownload/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+CTestTestfile.cmake
+compile_commands.json
+.ninja_deps
+.ninja_log
+build.ninja
+
+# Compiler, linker, debugger, and firmware output.
+*.o
+*.obj
+*.d
+*.dep
+*.i
+*.su
+*.cyclo
+*.gcda
+*.gcno
+*.gcov
+*.elf
+*.axf
+*.bin
+*.hex
+*.map
+*.lst
+*.list
+*.lnp
+*.crf
+*.iex
+*.pdb
+*.idb
+*.ilk
+*.out
+*.uimg
+*.scvd
+
+# Keil MDK generated projects and state; keep template.* source files.
+/Objects/
+/Listings/
+/DebugConfig/
+/RTE/
+/MDK*-ARM/
+/project.Uv2
+/project.uvproj
+/project.uvprojx
+/project.uvopt
+/project.uvoptx
+*.uvgui*
+*.uvguix*
+JLinkLog.txt
+JLinkSettings.ini
+
+# IAR EWARM generated projects and state; keep template.ewp source file.
+/EWARM/
+*.dni
+*.wsdt
+*.dbgdt
+*.cspy.bat
+
+# STM32CubeIDE make fragments when Debug is also a BSP source directory.
+/Debug/makefile
+/Debug/objects.list
+/Debug/objects.mk
+/Debug/sources.mk
+/Debug/**/subdir.mk
+
+# Generated documentation and source-index databases.
+/documentation/html/
+GPATH
+GRTAGS
+GTAGS
+cscope.in.out
+cscope.out
+cscope.po.out
+
+# Local logs, temporary files, and editor backups.
+*.log
+*.tmp
+*.temp
+*.old
+*.[Bb][Aa][Kk]
+*.orig
+*.rej
+*.swp
+*.swo
+*~
+
+# Keil option templates are versioned input, despite the repository-wide user-state rule.
+!/template.uvopt
+!/template.uvoptx
