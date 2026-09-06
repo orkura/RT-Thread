@@ -111,6 +111,12 @@ def main():
         raise RuntimeError('unsupported download tool: ' + tool_name)
 
     executable_value = DOWNLOAD_TOOL_PATHS.get(tool_name, '')
+    if not executable_value:
+        raise FileNotFoundError(
+            'J-Link Commander is not configured; copy a platform example '
+            'from the Config directory to toolchain_config.local.py and '
+            'set its path'
+        )
     executable = Path(executable_value).expanduser()
     if not executable.is_file():
         raise FileNotFoundError(
