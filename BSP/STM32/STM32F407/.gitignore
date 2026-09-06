@@ -97,6 +97,9 @@ cscope.po.out
 *.swo
 *~
 
+# Per-machine compiler and download-tool paths.
+/Config/toolchain_config.local.py
+
 # Keil option templates are versioned input, despite the repository-wide user-state rule.
 !/template.uvopt
 !/template.uvoptx
