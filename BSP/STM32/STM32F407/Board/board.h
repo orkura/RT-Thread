@@ -1,7 +1,7 @@
 #ifndef __BOARD_H__
 #define __BOARD_H__
 
-#include "Core/Inc/main.h"
+#include "stm32f4xx_hal.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -32,6 +32,7 @@ extern int _sstack;
 #endif
 
 void SystemClock_Config(void);
+void Error_Handler(void);
 
 #ifdef __cplusplus
 }

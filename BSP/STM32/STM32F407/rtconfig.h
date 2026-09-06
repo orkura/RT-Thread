@@ -155,11 +155,6 @@
 #define RT_USING_SERIAL_V1
 #define RT_SERIAL_USING_DMA
 #define RT_SERIAL_RB_BUFSZ 64
-#define RT_USING_CAN
-#define RT_CANMSG_BOX_SZ 16
-#define RT_CANSND_BOX_NUM 1
-#define RT_CANSND_MSG_TIMEOUT 100
-#define RT_CAN_NB_TX_FIFO_SIZE 256
 #define RT_USING_PIN
 /* end of Device Drivers */
 
@@ -221,5 +216,6 @@
 /* end of Hardware Drivers */
 
 /* BSP Components */
+
 
 #endif

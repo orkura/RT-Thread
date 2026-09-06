@@ -1,151 +1,124 @@
-# CubeMX 移植适配说明
+# STM32F407 板级适配说明
 
-## 1. 基本原则
+## 1. 设计边界
 
-CubeMX 负责生成芯片时钟、引脚、外设和 MSP 底层配置；RT-Thread 负责程序入口、系统调度、系统节拍、设备驱动和应用程序生命周期。两者不能同时管理同一个入口或同一套底层驱动，否则容易出现重复初始化、重复中断函数或重复符号。因此，本 BSP 使用 `board.c` 和 `board.h` 作为稳定适配层，CubeMX 生成的 `Core` 目录保持相对独立。
+本目录只保留启动 STM32F407 和运行 RT-Thread 所需的板级实现。CMSIS
+负责复位后的芯片初始化，STM32 HAL 负责底层外设访问，RT-Thread 负责程序
+入口、系统调度、系统节拍、设备模型和应用生命周期。
+
+CubeMX 只作为时钟树、引脚和外设配置工具使用。生成结果应先放在仓库外的
+临时目录中，再按职责同步到 BSP；不要把 CubeMX 的完整裸机工程直接复制到
+`Board/Core`。
 
 ## 2. 文件职责
 
-| 文件或目录 | 使用方式 | 作用 |
+| 文件或目录 | 作用 | 维护方式 |
 | --- | --- | --- |
-| `board.c` | 手工维护并参与编译 | 保存 `SystemClock_Config()`、`Error_Handler()` 等板级适配代码 |
-| `board.h` | 手工维护并参与编译 | 定义 SRAM、Flash、系统堆边界及板级接口 |
-| `Core/Inc/main.h` | CubeMX 生成，直接包含 | 提供 CubeMX 引脚定义、公共声明及 HAL 头文件入口 |
-| `Core/Inc/stm32f4xx_hal_conf.h` | CubeMX 生成，直接使用 | 控制启用哪些 HAL 模块 |
-| `Core/Src/stm32f4xx_hal_msp.c` | CubeMX 生成并参与编译 | 配置外设时钟、GPIO 复用、DMA 和 NVIC |
-| `Core/Src/main.c` | CubeMX 生成但不参与编译 | 作为时钟和外设初始化配置的参考来源 |
-| `Core/Src/stm32f4xx_it.c` | 不整体参与编译 | 其中部分异常和中断入口由 RT-Thread 接管 |
-| `Core/Src/system_stm32f4xx.c` | CubeMX 生成并参与编译 | 提供 `SystemInit()` 和 `SystemCoreClock` 更新 |
-| `Drivers/CMSIS` | 本地管理并参与构建 | 提供 CMSIS Core 和 STM32F4 设备头文件 |
-| `Drivers/STM32F4xx_HAL_Driver` | 本地管理并参与编译 | 提供 CubeMX 配套的 STM32F4 HAL 源码和头文件 |
-| `GCC`、`MDK-ARM`、`EWARM` | 本地管理并按工具链选择 | 提供启动文件和链接文件 |
+| `board.c` | 实现 `SystemClock_Config()`、`Error_Handler()` | 手工维护，时钟树变化时从 CubeMX 对比同步 |
+| `board.h` | 引入 HAL、声明板级接口，定义 SRAM、Flash 和堆边界 | 手工维护 |
+| `Core/Inc/stm32f4xx_hal_conf.h` | 选择 HAL 模块并提供振荡器等 HAL 配置 | 根据 CubeMX/HAL 版本同步 |
+| `Core/Src/stm32f4xx_hal_msp.c` | 配置 UART1 时钟、GPIO 复用和 NVIC | 保留 CubeMX 生成风格和 `USER CODE` 标记，仅使用 `board.h` 替代 `main.h` |
+| `Core/Src/system_stm32f4xx.c` | 提供 `SystemInit()`、`SystemCoreClock` | 与当前 CMSIS Device 版本保持一致 |
+| `Drivers/CMSIS` | CMSIS Core 和 STM32F4 Device 支持 | 与芯片支持包成套更新 |
+| `Drivers/STM32F4xx_HAL_Driver` | STM32F4 HAL 实现 | 与 `stm32f4xx_hal_conf.h` 版本匹配 |
+| `Startup` | GCC、Keil 和 IAR 启动文件 | 每次构建只选择当前工具链对应文件 |
+| `LinkerScripts` | 各工具链的 Flash/SRAM 布局 | 与 `board.h` 的内存边界保持一致 |
 
-当前 `SConscript` 编译：
+`Core` 的预期结构为：
+
+```text
+Core/
+├── Inc/
+│   └── stm32f4xx_hal_conf.h
+└── Src/
+    ├── stm32f4xx_hal_msp.c
+    └── system_stm32f4xx.c
+```
+
+## 3. 不保留的 CubeMX 文件
+
+以下文件属于 CubeMX 裸机工程框架，不应重新加入本 BSP：
+
+| 文件 | 不保留的原因 |
+| --- | --- |
+| `Core/Src/main.c` | `main()`、时钟配置和外设初始化与 RT-Thread 启动流程重复 |
+| `Core/Src/stm32f4xx_it.c` | `PendSV`、`SysTick`、HardFault 和驱动中断由 RT-Thread 接管 |
+| `Core/Inc/stm32f4xx_it.h` | 只服务于不再保留的 CubeMX 中断实现 |
+| `Core/Src/syscalls.c` | 裸机 C 库系统调用模板与 RT-Thread 控制台、设备和 libc 适配冲突 |
+| `Core/Src/sysmem.c` | 裸机 `_sbrk()` 堆实现与 RT-Thread 系统堆职责重复 |
+| `Core/Inc/main.h` | 原文件只包装 HAL 头文件和 `Error_Handler()`；职责已并入 `board.h` |
+
+如果 CubeMX 为新增引脚在 `main.h` 中生成了宏，应将确实需要的宏迁移到
+`board.h` 或对应外设的专用配置头文件，而不是恢复整个 `main.h`。
+
+## 4. 实际构建内容
+
+`Board/SConscript` 固定编译以下板级源码：
 
 ```text
 board.c
 Core/Src/stm32f4xx_hal_msp.c
 Core/Src/system_stm32f4xx.c
-GCC、MDK-ARM 或 EWARM 中对应的启动文件
-Drivers/SConscript 根据 stm32f4xx_hal_conf.h 选中的 HAL 源文件
+Startup/<当前工具链>/startup_stm32f407xx.s
 ```
 
-## 3. CubeMX 工程配置
+`Drivers/SConscript` 再根据 `stm32f4xx_hal_conf.h` 选择需要的 HAL 源文件。
+不要在 IDE 工程中手工加入已经被 SCons 排除的 CubeMX 文件，否则 SCons 与
+IDE 构建行为会不一致。
 
-时钟源、晶振频率、引脚和外设必须根据实际硬件配置，不能直接套用其他开发板的参数。
+## 5. 启动和初始化流程
 
-在 CubeMX 的代码生成设置中，建议：
-
-- 保留用户代码区域，避免重新生成时覆盖 `USER CODE` 中的内容。
-- 对需要自行管理的外设，启用“每个外设生成独立的 `.c/.h` 文件”。
-- 生成代码到独立目录，再有选择地同步到本目录，避免直接覆盖 BSP 文件。
-
-## 4. 首次导入 CubeMX 代码
-
-将 CubeMX 生成的 `Core` 目录复制到当前 `Board` 目录。如果需要更新 HAL 或 CMSIS，则分别同步 `Drivers/CMSIS` 和 `Drivers/STM32F4xx_HAL_Driver`，不要直接覆盖整个 `Drivers` 目录。
-
-不要使用 CubeMX 生成文件直接覆盖以下内容：
+当前控制流如下：
 
 ```text
-board.c
-board.h
-SConscript
-Kconfig
-GCC/
-MDK-ARM/
-EWARM/
-Drivers/SConscript
+Reset_Handler
+  -> SystemInit()
+  -> 初始化 .data/.bss 和 C 运行库
+  -> entry()
+  -> rtthread_startup()
+  -> rt_hw_board_init()
+       -> HAL_Init()
+       -> SystemClock_Config()
+       -> RT-Thread 系统堆和板级组件初始化
+  -> RT-Thread main 线程
+  -> Applications/main.c
 ```
 
-导入后按以下方式处理：
+`SystemInit()` 必须保留，因为三个工具链的启动文件都会调用它；
+`SystemClock_Config()` 则位于 `board.c`，由 STM32 公共驱动中的
+`rt_hw_board_init()` 调用。二者职责不同，不能相互替代。
 
-1. 保留 `Core/Inc/main.h` 和 `Core/Inc/stm32f4xx_hal_conf.h`。
-2. 编译 `Core/Src/stm32f4xx_hal_msp.c`。
-3. 从 `Core/Src/main.c` 中同步 `SystemClock_Config()` 到 `board.c`。
-4. 不编译 CubeMX 生成的 `main()` 和无限循环。
-5. 不整体编译 `stm32f4xx_it.c`。
+## 6. CubeMX 配置更新流程
 
-## 5. 系统启动职责
+每次修改 CubeMX 工程后按以下顺序处理：
 
-CubeMX 的典型 `main()` 包含以下流程：
+1. 将代码生成到仓库外的临时目录，不直接覆盖 `Board`。
+2. 对比 `stm32f4xx_hal_conf.h`，只同步需要的 HAL 模块和时钟常量。
+3. 对比 `stm32f4xx_hal_msp.c`，保留 CubeMX 的文件结构、注释和 `USER CODE`
+   标记，将生成的 `#include "main.h"` 改为 `#include "board.h"`，并只同步 UART1
+   所需的时钟、GPIO 和 NVIC 配置。
+4. 对比 CubeMX `main.c` 中的 `SystemClock_Config()`，把函数体同步到
+   `board.c`，但不要复制 `main()`、`HAL_Init()` 或 `MX_*_Init()`。
+5. 只有 CMSIS Device 版本变化时才成套更新
+   `system_stm32f4xx.c`、Device 头文件和启动文件。
+6. HAL 版本变化时成套更新 `STM32F4xx_HAL_Driver`，并重新检查
+   `stm32f4xx_hal_conf.h`。
+7. 检查新增外设是否已有 RT-Thread STM32 驱动；优先通过 Kconfig 和驱动配置
+   启用，不重复调用 CubeMX 的 `MX_*_Init()`。
+8. 重新生成配置，至少完成一次当前工具链的全量构建。
 
-```c
-HAL_Init();
-SystemClock_Config();
-MX_GPIO_Init();
-MX_USART1_UART_Init();
-while (1)
-{
-}
-```
+## 7. 外设与中断
 
-在当前 BSP 中，其职责对应如下：
+当前 BSP 只保留 UART1 和 GPIO。UART1 由 RT-Thread 串口驱动管理，
+`stm32f4xx_hal_msp.c` 负责其时钟、PA9/PA10 复用和 NVIC 配置；GPIO 由
+RT-Thread PIN 驱动直接调用 HAL GPIO 接口，因此不存在
+`HAL_GPIO_MspInit()` 回调。CAN、RTC 及其他外设的 MSP 回调和 HAL 模块均
+未启用。
 
-| CubeMX 操作 | 当前处理方式 |
-| --- | --- |
-| `main()` | 由 RT-Thread 和 `Applications/main.c` 接管 |
-| `HAL_Init()` | 由公共 STM32 驱动的 `rt_hw_board_init()` 调用 |
-| `SystemClock_Config()` | 放在 `board.c` 中，由 `rt_hw_board_init()` 调用 |
-| `MX_*_Init()` | 由 RT-Thread 驱动或自定义组件接管 |
-| `while (1)` | 不使用，由 RT-Thread 调度线程 |
-
-因此，不要直接把 CubeMX 的整个 `main.c` 加入编译。
-
-## 6. 同步系统时钟
-
-当 CubeMX 中的时钟树发生变化时，只需要把最新的 `SystemClock_Config()` 函数体同步到 `board.c`。
-
-同步后重点检查：
-
-- HSE、LSE 或 HSI 的选择是否符合实际硬件。
-- `PLLM`、`PLLN`、`PLLP`、`PLLQ` 是否与 CubeMX 一致。
-- AHB、APB1、APB2 分频是否一致。
-- Flash 等待周期是否与系统频率匹配。
-- `SystemCoreClock` 最终值是否正确。
-
-不要在 `SystemClock_Config()` 中再次调用 `HAL_Init()`。
-
-### 6.1 SRAM、堆与主栈边界
-
-F407 的 128KB 常规 SRAM 位于 `0x20000000` 到 `0x20020000`。各工具链统一在 SRAM 顶部保留 8KB 主栈，即 `0x2001E000` 到 `0x20020000`；RT-Thread 系统堆从静态 RW/ZI 数据末尾开始，并在主栈起点 `0x2001E000` 结束。GCC 链接脚本还会在静态数据侵入主栈预留区时直接报告链接错误。
-
-## 7. 外设适配
-
-### 7.1 RT-Thread 已提供驱动的外设
-
-UART、GPIO、RTC、SPI、I2C、ADC 等外设优先使用 RT-Thread STM32 驱动：
-
-1. 在 `Board/Kconfig` 中启用对应 BSP 选项。
-2. 在 `board.h` 或对应驱动配置文件中提供实例、引脚、DMA 和中断配置。
-3. 保留 CubeMX 生成的 MSP 配置。
-4. 不再调用同一外设的 `MX_*_Init()`，避免重复初始化。
-
-### 7.2 RT-Thread 未接管的自定义外设
-
-如果需要使用 CubeMX 生成的外设初始化文件，应将它作为独立模块加入构建，并通过 RT-Thread 初始化机制调用，而不是放回 CubeMX 的 `main()`：
-
-```c
-static int custom_device_init(void)
-{
-    MX_CUSTOM_Init();
-    return 0;
-}
-INIT_DEVICE_EXPORT(custom_device_init);
-```
-
-初始化阶段必须根据外设依赖关系选择。必须在系统设备初始化之前完成的底层硬件可使用 `INIT_BOARD_EXPORT`，普通设备通常使用 `INIT_DEVICE_EXPORT`。
-
-## 8. 中断适配
-
-不要整体编译 CubeMX 的 `stm32f4xx_it.c`，因为以下异常入口通常由 RT-Thread或其移植层提供：
-
-```text
-HardFault_Handler
-PendSV_Handler
-SysTick_Handler
-```
-
-对于 RT-Thread 已有驱动的外设，中断函数通常由对应驱动提供。对于自定义外设，只迁移所需的中断函数，并在必要时通知 RT-Thread 进入和退出中断：
+`HardFault_Handler` 和 `PendSV_Handler` 由 Cortex-M4 移植层提供，
+`SysTick_Handler` 由 STM32 公共驱动提供，USART 等外设中断通常由对应
+RT-Thread 驱动提供。自定义外设确需新增中断时，应放在独立的板级模块中，
+先确认没有同名实现，并遵循 RT-Thread 的中断进入/退出约定：
 
 ```c
 void CUSTOM_IRQHandler(void)
@@ -156,46 +129,25 @@ void CUSTOM_IRQHandler(void)
 }
 ```
 
-迁移前必须确认工程中不存在同名中断函数。
+## 8. 时钟和内存约束
 
-## 9. HAL、CMSIS 和启动文件由 BSP 本地管理
+时钟树更新后应核对 HSE/LSE 来源、PLL 参数、AHB/APB 分频、Flash 等待周期
+以及最终的 `SystemCoreClock`。不要在 `SystemClock_Config()` 中再次调用
+`HAL_Init()`。
 
-当前工程直接使用 `Board/Drivers` 中与 CubeMX 配套的 HAL 和 CMSIS：
+STM32F407 的 128 KiB 常规 SRAM 位于 `0x20000000`—`0x20020000`。
+本 BSP 在 SRAM 顶部保留 8 KiB 主栈；RT-Thread 系统堆从静态 RW/ZI 数据末尾
+延伸到主栈起点。修改链接脚本、主栈大小或芯片型号时，必须同步检查
+`board.h` 中的 `HEAP_BEGIN`、`HEAP_END` 和 SRAM/Flash 容量。
 
-- `Drivers/SConscript` 读取 `Core/Inc/stm32f4xx_hal_conf.h`。
-- 只有 CubeMX 实际启用的 HAL 模块会加入编译。
-- 需要额外 LL 实现的 HAL 模块会自动加入对应 LL 源文件。
-- `Board/SConscript` 根据当前工具链选择本地启动文件。
-- `Core/Src/system_stm32f4xx.c` 提供本地 `SystemInit()`。
+## 9. 更新检查表
 
-不要再额外引入其他 STM32F4 HAL、CMSIS、启动文件或 `system_stm32f4xx.c`，否则会与 BSP 中的本地实现重复。
-
-## 10. CubeMX 重新生成后的更新流程
-
-每次重新生成代码后，建议按以下顺序更新：
-
-1. 对比并同步 `Core/Inc/main.h`。
-2. 对比并同步 `Core/Inc/stm32f4xx_hal_conf.h`。
-3. 对比并同步 `Core/Src/stm32f4xx_hal_msp.c`。
-4. 如果时钟树发生变化，将新的 `SystemClock_Config()` 同步到 `board.c`。
-5. HAL 或 CMSIS 版本变化时，同步其子目录，但保留 `Drivers/SConscript`。
-6. 如果更新启动文件，重新确认 GCC 在完成 C 运行库初始化后跳转到 `entry`。
-7. 检查新增外设是否由 RT-Thread 驱动接管。
-8. 只迁移确实需要的自定义外设初始化和中断函数。
-9. 检查 `Board/Kconfig` 与 `board.h` 中的外设配置是否匹配。
-10. 重新生成 RT-Thread 配置并完成编译验证。
-
-不要把应用逻辑放入 CubeMX 生成目录。应用代码应放在 `Applications`，可复用组件放在 `Components`，调试功能放在 `Debug`。
-
-## 11. 更新检查表
-
-- [ ] `Core/Src/main.c` 未加入编译。
-- [ ] `Core/Src/stm32f4xx_it.c` 未被整体加入编译。
-- [ ] `SystemClock_Config()` 与最新 CubeMX 时钟树一致。
-- [ ] `board.h` 的 SRAM、Flash 和堆边界与链接脚本一致。
-- [ ] 同一外设没有同时执行 RT-Thread 和 CubeMX 初始化。
-- [ ] 工程中没有重复的中断函数。
-- [ ] HAL 和 CMSIS 只有一套源码参与编译。
-- [ ] STM32F4 HAL 和 CMSIS Driver 软件包未参与编译。
-- [ ] 当前工具链只选择了一个本地启动文件。
-- [ ] Kconfig 选项、`board.h` 配置与实际硬件一致。
+- [ ] `Core` 只包含文档列出的三个必要文件。
+- [ ] `SystemClock_Config()` 与当前 CubeMX 时钟树一致。
+- [ ] `stm32f4xx_hal_msp.c` 只包含全局 MSP 与 UART1 MSP 回调。
+- [ ] 同一外设没有同时执行 RT-Thread 初始化和 CubeMX `MX_*_Init()`。
+- [ ] 工程中没有重复的异常或外设中断函数。
+- [ ] HAL、CMSIS、启动文件和 `system_stm32f4xx.c` 各只有一套参与编译。
+- [ ] Kconfig、`rtconfig.h`、板级配置和实际硬件一致。
+- [ ] SRAM、Flash、堆和主栈边界与链接脚本一致。
+- [ ] GCC、Keil 或 IAR 至少完成一次干净构建。
