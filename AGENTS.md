@@ -14,3 +14,7 @@
 
 - Git 分支管理规范：创建或重命名 Git 分支前，必须完整阅读并遵守文件 [Git 分支管理规范](Docs/Git/Git分支管理规范.md)。
 - Git 提交管理规范：暂存或提交文件前，必须完整阅读并遵守文件 [Git 提交管理规范](Docs/Git/Git提交管理规范.md)。
+
+## 项目知识索引
+
+首次进入该工程需阅读 [工程架构总览](Docs/Architecture/01-System-Overview.md)，涉及配置、构建、工具链、源码接入或工程生成时，还必须完整阅读 [构建与配置架构](Docs/Architecture/08-Build-and-Configuration.md)。
