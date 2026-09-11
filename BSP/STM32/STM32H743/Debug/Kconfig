@@ -1,0 +1,5 @@
+menu "Debug"
+
+orsource "*/Kconfig"
+
+endmenu

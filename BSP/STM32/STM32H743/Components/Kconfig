@@ -1,0 +1,6 @@
+menu "BSP Components"
+
+# Source each BSP-specific component Kconfig explicitly, for example:
+# rsource "MotorControl/Kconfig"
+
+endmenu
