@@ -1,7 +1,12 @@
 mainmenu "STM32F407 BSP Configuration"
 
+# Current BSP root directory.
 BSP_DIR := .
+
+# Repository root directory.
 PROJECT_DIR := ../../..
+
+# RT-Thread source directory.
 RTT_DIR := $(PROJECT_DIR)/RT-Thread
 
 rsource "../Libraries/Kconfig"
