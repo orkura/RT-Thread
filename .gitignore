@@ -20,6 +20,7 @@ Desktop.ini
 # Python environments, bytecode, and test caches
 .venv/
 venv/
+.venv
 __pycache__/
 *.py[cod]
 *$py.class
