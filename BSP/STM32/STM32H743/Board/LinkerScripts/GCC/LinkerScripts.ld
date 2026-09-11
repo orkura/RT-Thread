@@ -6,8 +6,8 @@
 **
 **  Author		: STM32CubeMX
 **
-**  Abstract    : Linker script for STM32F407ZGTx series
-**                1024Kbytes FLASH and 192Kbytes RAM
+**  Abstract    : Linker script for STM32H743VITx series
+**                2048 Kbytes FLASH and 1056 Kbytes RAM
 **
 **                Set heap size, stack size and stack location according
 **                to application requirements.
@@ -52,16 +52,24 @@
 /* Entry Point */
 ENTRY(Reset_Handler)
 
-/* Specify the memory areas */
+/*
+ * RT-Thread keeps its default RW/ZI data, heap, and main stack in AXI SRAM.
+ * DTCM is intentionally not the default because general DMA masters cannot
+ * access it. The remaining internal banks are declared for explicit future
+ * placement of performance-critical or DMA-specific sections.
+ */
 MEMORY
 {
-RAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 128K
-CCMRAM (xrw)      : ORIGIN = 0x10000000, LENGTH = 64K
-FLASH (rx)      : ORIGIN = 0x8000000, LENGTH = 1024K
+ITCMRAM (xrw) : ORIGIN = 0x00000000, LENGTH = 64K
+DTCMRAM (xrw) : ORIGIN = 0x20000000, LENGTH = 128K
+RAM (xrw)     : ORIGIN = 0x24000000, LENGTH = 512K
+RAM_D2 (xrw)  : ORIGIN = 0x30000000, LENGTH = 288K
+RAM_D3 (xrw)  : ORIGIN = 0x38000000, LENGTH = 64K
+FLASH (rx)    : ORIGIN = 0x08000000, LENGTH = 2048K
 }
 
-/* Highest address of the user mode stack */
-_estack = ORIGIN(RAM) + LENGTH(RAM);    /* end of RAM */
+/* Reserve the top 8 KB of AXI SRAM for the main/interrupt stack. */
+_estack = ORIGIN(RAM) + LENGTH(RAM);
 _sstack = _estack - _Min_Stack_Size;
 /* Generate a link error if heap and stack don't fit into RAM */
 _Min_Heap_Size = 0x200;      /* required amount of heap  */
@@ -182,25 +190,6 @@ SECTIONS
     PROVIDE_HIDDEN (__fini_array_end = .);
     . = ALIGN(4);
   } >FLASH
-
-  _siccmram = LOADADDR(.ccmram);
-
-  /* CCM-RAM section
-  *
-  * IMPORTANT NOTE!
-  * If initialized variables will be placed in this section,
-  * the startup code needs to be modified to copy the init-values.
-  */
-  .ccmram :
-  {
-    . = ALIGN(4);
-    _sccmram = .;       /* create a global symbol at ccmram start */
-    *(.ccmram)
-    *(.ccmram*)
-
-    . = ALIGN(4);
-    _eccmram = .;       /* create a global symbol at ccmram end */
-  } >CCMRAM AT> FLASH
 
   /* used by the startup to initialize data */
   _sidata = LOADADDR(.data);
