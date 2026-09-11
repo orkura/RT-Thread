@@ -1,0 +1,12 @@
+config BSP_USING_CAN1_DEBUG
+    bool "Enable CAN1 FinSH debug command"
+    depends on BSP_USING_CAN1 && RT_USING_CAN
+    depends on RT_USING_FINSH && FINSH_USING_MSH
+    depends on FINSH_USING_OPTION_COMPLETION
+    depends on RT_USING_TIMER_SOFT && RT_USING_MUTEX
+    default n
+    help
+        Enable the "can1" FinSH command for interactive CAN1 debugging.
+        It supports normal operation, message transmission/reception, status
+        inspection, command completion, parameter help, periodic non-blocking
+        broadcasting, and internal loopback testing at 250 kbit/s by default.

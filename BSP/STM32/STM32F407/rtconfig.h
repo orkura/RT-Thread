@@ -9,6 +9,9 @@
 
 /* Debug */
 
+#define BSP_USING_CAN1_DEBUG
+/* end of Debug */
+
 /* RT-Thread Kernel */
 
 /* klibc options */
@@ -69,7 +72,7 @@
 
 /* end of rt_strnlen options */
 /* end of klibc options */
-#define RT_NAME_MAX 16
+#define RT_NAME_MAX 32
 #define RT_CPUS_NR 1
 #define RT_ALIGN_SIZE 8
 #define RT_THREAD_PRIORITY_32
@@ -140,7 +143,7 @@
 #define FINSH_CMD_SIZE 80
 #define MSH_USING_BUILT_IN_COMMANDS
 #define FINSH_USING_DESCRIPTION
-#define FINSH_ARG_MAX 10
+#define FINSH_ARG_MAX 12
 #define FINSH_USING_OPTION_COMPLETION
 
 /* DFS: device virtual file system */
@@ -155,6 +158,12 @@
 #define RT_USING_SERIAL_V1
 #define RT_SERIAL_USING_DMA
 #define RT_SERIAL_RB_BUFSZ 64
+#define RT_USING_CAN
+#define RT_CAN_USING_HDR
+#define RT_CANMSG_BOX_SZ 16
+#define RT_CANSND_BOX_NUM 1
+#define RT_CANSND_MSG_TIMEOUT 100
+#define RT_CAN_NB_TX_FIFO_SIZE 256
 #define RT_USING_PIN
 /* end of Device Drivers */
 
@@ -209,6 +218,8 @@
 /* On-chip Peripheral Drivers */
 
 #define BSP_USING_GPIO
+#define BSP_USING_CAN
+#define BSP_USING_CAN1
 #define BSP_USING_UART
 #define BSP_STM32_UART_V1_TX_TIMEOUT 2000
 #define BSP_USING_UART1
