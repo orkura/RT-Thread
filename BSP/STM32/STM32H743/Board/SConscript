@@ -9,8 +9,8 @@ cwd = GetCurrentDir()
 
 src = [
     'board.c',
-    os.path.join('Core', 'Src', 'stm32f4xx_hal_msp.c'),
-    os.path.join('Core', 'Src', 'system_stm32f4xx.c'),
+    os.path.join('Core', 'Src', 'stm32h7xx_hal_msp.c'),
+    os.path.join('Core', 'Src', 'system_stm32h7xx.c'),
 ]
 
 startup_files = {
@@ -29,14 +29,14 @@ CPPPATH = [
     cwd,
     os.path.join(cwd, 'Core', 'Inc'),
     os.path.join(cwd, 'Drivers', 'CMSIS', 'Core', 'Include'),
-    os.path.join(cwd, 'Drivers', 'CMSIS', 'Device', 'ST', 'STM32F4xx', 'Include'),
+    os.path.join(cwd, 'Drivers', 'CMSIS', 'Device', 'ST', 'STM32H7xx', 'Include'),
 ]
 
-# The scatter file reserves optional RT-Thread registration tables. ARMCC
-# reports L6314W when a corresponding feature is disabled and its table is
-# therefore empty; keep the table definitions for future Kconfig changes.
+# The scatter file reserves optional RT-Thread registration tables. Arm
+# linkers report L6314W when a corresponding feature is disabled and its table
+# is therefore empty; keep the table definitions for future Kconfig changes.
 LINKFLAGS = ''
-if rtconfig.PLATFORM == 'armcc':
+if rtconfig.PLATFORM in ('armcc', 'armclang'):
     LINKFLAGS = ' --diag_suppress=L6314W'
 
 board_group = DefineGroup(
