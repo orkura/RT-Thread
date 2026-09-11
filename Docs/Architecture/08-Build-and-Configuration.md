@@ -169,6 +169,17 @@ Copy-Item Config/toolchain_config.windows.example.py Config/toolchain_config.loc
 
 常规开发应使用仓库内默认路径。只有验证外部 RT-Thread 源码或临时工具链时才建议覆盖这些变量，并在问题记录中注明实际取值。
 
+### 5.4 启动文件与链接脚本命名
+
+各 BSP 应将启动文件放在 `Board/Startup/<工具链>/Startup.s`，将链接脚本放在
+`Board/LinkerScripts/<工具链>/`，并统一采用 `LinkerScripts` 作为文件基名。
+扩展名由工具链决定：GCC 使用 `.ld`，Keil/ArmClang 使用 `.sct`，IAR 使用
+`.icf`。同一工具链存在多个内存布局时，在基名后增加布局后缀，例如
+`LinkerScripts_SRAM.icf`。
+
+这一命名约定使 BSP 模板的目录结构和构建接入点保持稳定；芯片型号、容量和
+内存区域等差异应体现在文件内容中，而不依赖文件名前缀表达。
+
 ## 6. SCons 构建链路
 
 ### 6.1 BSP 构建入口
