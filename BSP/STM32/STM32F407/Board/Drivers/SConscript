@@ -29,10 +29,14 @@ src = [os.path.join('STM32F4xx_HAL_Driver', 'Src', 'stm32f4xx_hal.c')]
 
 for module in sorted(enabled_modules):
     prefix = 'stm32f4xx_hal_' + module.lower()
+    module_source = prefix + '.c'
+    extension_prefix = prefix + '_'
     module_sources = [
         os.path.join('STM32F4xx_HAL_Driver', 'Src', name)
         for name in os.listdir(hal_src_root)
-        if name.startswith(prefix) and name.endswith('.c')
+        if ((name == module_source or name.startswith(extension_prefix))
+            and name.endswith('.c')
+            and not name.endswith('_template.c'))
     ]
 
     if not module_sources:

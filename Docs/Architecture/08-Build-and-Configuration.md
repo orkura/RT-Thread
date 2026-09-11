@@ -85,24 +85,25 @@ flowchart TD
 | 文件 | 职责 | 版本管理策略 |
 | --- | --- | --- |
 | `Kconfig` 及子级 Kconfig | 声明配置项、默认值、依赖和选择关系 | 应提交 |
-| `.config` | Kconfig 工具使用的本地配置状态 | 当前 BSP 已忽略 |
+| `.config` | 记录当前 BSP 的功能选择，是可审查、可复现的配置基线 | 当前 BSP 已跟踪 |
 | `.config.old` | 配置工具保存的上一次状态 | 当前 BSP 已忽略 |
-| `rtconfig.h` | 将生效配置暴露为 C 预处理宏，也是 SCons 条件选源的输入 | 当前 BSP 已跟踪 |
+| `rtconfig.h` | 由 `.config` 生成，将生效配置暴露为 C 预处理宏，也是 SCons 条件选源的输入 | 当前 BSP 已跟踪 |
 | `rtconfig.py` | 定义架构、工具链、编译参数、链接脚本和产物路径 | 应提交 |
 
-由于 `.config` 不进入版本库，而 `rtconfig.h` 进入版本库，新检出工作区需要先从 `rtconfig.h` 重建本地 `.config`，再打开配置界面：
+新检出工作区直接使用版本库中的 `.config`。Kconfig 定义发生变化、解决配置合并冲突或需要非交互式整理时，先执行：
 
 ```bash
-scons --genconfig
-scons --menuconfig
+scons --defconfig
 ```
 
-配置界面保存后，工具会更新 `.config`，并在配置发生变化时重新生成 `rtconfig.h`。提交配置变更时，应检查并提交 `rtconfig.h` 以及相关 Kconfig 源文件，不应提交 `.config` 或 `.config.old`。
+该命令会根据当前 Kconfig 整理 `.config` 并重新生成 `rtconfig.h`。配置界面保存后也会更新这两个文件。提交配置变更时，应同时检查并提交 `.config`、`rtconfig.h` 以及相关 Kconfig 源文件，不应提交 `.config.old`。
+
+`scons --genconfig` 仅用于 `.config` 丢失时从 `rtconfig.h` 恢复配置，常规工作流不需要执行。
 
 ### 4.3 常用配置命令
 
 ```bash
-# 从当前 rtconfig.h 生成本地 .config
+# .config 丢失时，从当前 rtconfig.h 恢复
 scons --genconfig
 
 # 打开终端配置界面
@@ -168,6 +169,17 @@ Copy-Item Config/toolchain_config.windows.example.py Config/toolchain_config.loc
 | `RTT_EXEC_PATH` | 指定编译器可执行目录 | 使用本机配置或自动探测 |
 
 常规开发应使用仓库内默认路径。只有验证外部 RT-Thread 源码或临时工具链时才建议覆盖这些变量，并在问题记录中注明实际取值。
+
+### 5.4 启动文件与链接脚本命名
+
+各 BSP 应将启动文件放在 `Board/Startup/<工具链>/Startup.s`，将链接脚本放在
+`Board/LinkerScripts/<工具链>/`，并统一采用 `LinkerScripts` 作为文件基名。
+扩展名由工具链决定：GCC 使用 `.ld`，Keil/ArmClang 使用 `.sct`，IAR 使用
+`.icf`。同一工具链存在多个内存布局时，在基名后增加布局后缀，例如
+`LinkerScripts_SRAM.icf`。
+
+这一命名约定使 BSP 模板的目录结构和构建接入点保持稳定；芯片型号、容量和
+内存区域等差异应体现在文件内容中，而不依赖文件名前缀表达。
 
 ## 6. SCons 构建链路
 
@@ -303,9 +315,9 @@ scons --target=cmake
 
 ### 10.1 修改功能配置
 
-1. 在 BSP 根目录执行 `scons --genconfig`，确保本地 `.config` 与当前 `rtconfig.h` 对齐。
+1. 在 BSP 根目录执行 `scons --defconfig`，按当前 Kconfig 整理已跟踪的 `.config` 并同步 `rtconfig.h`。
 2. 执行 `scons --menuconfig` 或 `scons --pyconfig` 修改配置。
-3. 检查 `rtconfig.h` 的差异，确认只有预期宏发生变化。
+3. 检查 `.config` 和 `rtconfig.h` 的差异，确认只有预期配置发生变化。
 4. 执行 `scons -c` 后再执行 `scons --cdb -j8`。
 5. 检查 ELF、BIN、MAP 和 `compile_commands.json` 是否生成。
 
@@ -334,7 +346,7 @@ scons --target=cmake
 
 ### 11.3 配置修改未生效
 
-检查 `.config` 与 `rtconfig.h` 是否同步，并确认源码所在 `SConscript` 使用了正确的配置依赖。构建系统根据 `rtconfig.h` 选择源码，仅修改 `.config` 而没有生成新头文件不会改变实际构建。
+检查 `.config` 与 `rtconfig.h` 是否同步，并确认源码所在 `SConscript` 使用了正确的配置依赖。构建系统根据 `rtconfig.h` 选择源码；若手工修改了 `.config`，应执行 `scons --defconfig` 重新生成头文件。
 
 ### 11.4 SCons 与 IDE 构建内容不同
 
@@ -348,6 +360,7 @@ scons --target=cmake
 
 - [ ] 命令从目标 BSP 根目录执行。
 - [ ] `.config`、`rtconfig.h` 和 Kconfig 定义一致。
+- [ ] 配置变更同时包含 `.config` 和 `rtconfig.h`，且未包含 `.config.old`。
 - [ ] 新源码由职责正确的 `SConscript` 管理。
 - [ ] 条件源码具有明确的 Kconfig 依赖。
 - [ ] 本机绝对路径只写入已忽略的本机配置。

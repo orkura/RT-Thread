@@ -23,7 +23,6 @@ LR_IROM1 0x08000000 0x00100000  {    ; load region size_region
    .ANY (+RW +ZI)
   }
   ARM_LIB_STACK 0x2001E000 0x00002000  {  ; Reserve 8 KB at SRAM top
-   startup_stm32f407xx.o (STACK)
+   Startup.o (STACK)
   }
 }
-

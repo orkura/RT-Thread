@@ -1,5 +1,5 @@
 ;********************************************************************************
-;* File Name          : startup_stm32f407xx.s
+;* File Name          : Startup.s
 ;* Author             : MCD Application Team
 ;* Description        : STM32F407xx devices vector table for EWARM toolchain.
 ;*                      This module performs:

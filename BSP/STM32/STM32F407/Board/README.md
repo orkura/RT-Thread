@@ -2,13 +2,9 @@
 
 ## 1. 设计边界
 
-本目录只保留启动 STM32F407 和运行 RT-Thread 所需的板级实现。CMSIS
-负责复位后的芯片初始化，STM32 HAL 负责底层外设访问，RT-Thread 负责程序
-入口、系统调度、系统节拍、设备模型和应用生命周期。
+本目录只保留启动 STM32F407 和运行 RT-Thread 所需的板级实现。CMSIS 负责复位后的芯片初始化，STM32 HAL 负责底层外设访问，RT-Thread 负责程序入口、系统调度、系统节拍、设备模型和应用生命周期。
 
-CubeMX 只作为时钟树、引脚和外设配置工具使用。生成结果应先放在仓库外的
-临时目录中，再按职责同步到 BSP；不要把 CubeMX 的完整裸机工程直接复制到
-`Board/Core`。
+CubeMX 只作为时钟树、引脚和外设配置工具使用。生成结果应先放在仓库外的临时目录中，再按职责同步到 BSP；不要把 CubeMX 的完整裸机工程直接复制到`Board/Core`。
 
 ## 2. 文件职责
 
@@ -59,12 +55,32 @@ Core/
 board.c
 Core/Src/stm32f4xx_hal_msp.c
 Core/Src/system_stm32f4xx.c
-Startup/<当前工具链>/startup_stm32f407xx.s
+Startup/<当前工具链>/Startup.s
 ```
 
 `Drivers/SConscript` 再根据 `stm32f4xx_hal_conf.h` 选择需要的 HAL 源文件。
 不要在 IDE 工程中手工加入已经被 SCons 排除的 CubeMX 文件，否则 SCons 与
 IDE 构建行为会不一致。
+
+启动文件和链接脚本采用与芯片型号无关的统一文件名，便于以本 BSP 为模板
+移植新的目标。各工具链文件分别放在自己的子目录中：
+
+```text
+Board/
+├── Startup/
+│   ├── GCC/Startup.s
+│   ├── MDK-ARM/Startup.s
+│   └── EWARM/Startup.s
+└── LinkerScripts/
+    ├── GCC/LinkerScripts.ld
+    ├── MDK-ARM/LinkerScripts.sct
+    └── EWARM/
+        ├── LinkerScripts.icf
+        └── LinkerScripts_SRAM.icf
+```
+
+移植其他 BSP 时保持目录和文件名稳定，只替换文件内容，并同步核对
+`Board/SConscript`、`rtconfig.py` 和对应 IDE 工程模板中的路径。
 
 ## 5. 启动和初始化流程
 

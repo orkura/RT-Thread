@@ -36,9 +36,15 @@ SConsignFile(os.path.join(BUILD_OUTPUT_DIR, '.sconsign.dblite'))
 TARGET = os.path.join(BUILD_OUTPUT_DIR, 'rt-thread.' + rtconfig.TARGET_EXT)
 
 DefaultEnvironment(tools=[])
+
 # Select host-specific SCons build rules; the ARM toolchain is set below.
-host_tools = ['mingw'] if os.name == 'nt' else ['gcc']
-env = Environment(tools = host_tools,
+scons_tools = (
+    ['mingw']
+    if os.name == 'nt'
+    else ['gcc', 'g++', 'as', 'link', 'ar']
+)
+
+env = Environment(tools = scons_tools,
     AS = rtconfig.AS, ASFLAGS = rtconfig.AFLAGS,
     CC = rtconfig.CC, CFLAGS = rtconfig.CFLAGS,
     AR = rtconfig.AR, ARFLAGS = '-rc',

@@ -368,7 +368,7 @@
             <TextAddressRange>0x08000000</TextAddressRange>
             <DataAddressRange>0x20000000</DataAddressRange>
             <pXoBase></pXoBase>
-            <ScatterFile>..\Board\LinkerScripts\MDK-ARM\STM32F407xx_FLASH.sct</ScatterFile>
+            <ScatterFile>..\Board\LinkerScripts\MDK-ARM\LinkerScripts.sct</ScatterFile>
             <IncludeLibs></IncludeLibs>
             <IncludeLibsPath></IncludeLibsPath>
             <Misc></Misc>

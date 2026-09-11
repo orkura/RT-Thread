@@ -29,10 +29,10 @@ else:
 EXEC_PATH = os.getenv('RTT_EXEC_PATH', TOOLCHAIN_PATHS.get(PLATFORM, ''))
 
 LINK_SCRIPT = {
-    'gcc': 'Board/LinkerScripts/GCC/STM32F407xx_FLASH.ld',
-    'armcc': 'Board/LinkerScripts/MDK-ARM/STM32F407xx_FLASH.sct',
-    'armclang': 'Board/LinkerScripts/MDK-ARM/STM32F407xx_FLASH.sct',
-    'iccarm': 'Board/LinkerScripts/EWARM/stm32f407xx_flash.icf',
+    'gcc': 'Board/LinkerScripts/GCC/LinkerScripts.ld',
+    'armcc': 'Board/LinkerScripts/MDK-ARM/LinkerScripts.sct',
+    'armclang': 'Board/LinkerScripts/MDK-ARM/LinkerScripts.sct',
+    'iccarm': 'Board/LinkerScripts/EWARM/LinkerScripts.icf',
 }[PLATFORM]
 
 # Keep artifacts from different build systems isolated and easy to identify.

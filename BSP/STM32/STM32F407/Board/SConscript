@@ -14,10 +14,10 @@ src = [
 ]
 
 startup_files = {
-    'gcc': os.path.join('Startup', 'GCC', 'startup_stm32f407xx.s'),
-    'armcc': os.path.join('Startup', 'MDK-ARM', 'startup_stm32f407xx.s'),
-    'armclang': os.path.join('Startup', 'MDK-ARM', 'startup_stm32f407xx.s'),
-    'iccarm': os.path.join('Startup', 'EWARM', 'startup_stm32f407xx.s'),
+    'gcc': os.path.join('Startup', 'GCC', 'Startup.s'),
+    'armcc': os.path.join('Startup', 'MDK-ARM', 'Startup.s'),
+    'armclang': os.path.join('Startup', 'MDK-ARM', 'Startup.s'),
+    'iccarm': os.path.join('Startup', 'EWARM', 'Startup.s'),
 }
 
 if rtconfig.PLATFORM not in startup_files:
