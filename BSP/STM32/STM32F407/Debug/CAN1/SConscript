@@ -6,8 +6,7 @@ src = Glob('*.c')
 group = DefineGroup(
     'CAN1 Debug',
     src,
-    depend=['BSP_USING_CAN1_DEBUG'],
-    CPPPATH=[cwd],
+    depend=['BSP_USING_CAN1_DEBUG']
 )
 
 Return('group')
