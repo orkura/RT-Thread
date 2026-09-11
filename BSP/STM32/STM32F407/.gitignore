@@ -1,5 +1,6 @@
-# RT-Thread generated configuration.
+# RT-Thread configuration. Track .config; ignore generated backups.
 /.config*
+!/.config
 /cconfig.h
 
 # SCons, CMake, and Ninja generated state.
