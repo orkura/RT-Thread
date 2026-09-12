@@ -18,7 +18,8 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
-#include "main.h"
+/* Use the RT-Thread board header instead of the CubeMX main header. */
+#include "board.h"
 /* USER CODE BEGIN Includes */
 
 /* USER CODE END Includes */
