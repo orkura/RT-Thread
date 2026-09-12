@@ -7,22 +7,18 @@ menu "On-chip Peripheral Drivers"
         depends on RT_USING_PIN
         default y
 
-    menuconfig BSP_USING_CAN
-        bool "Enable CAN"
+    menuconfig BSP_USING_FDCAN
+        bool "Enable FDCAN"
         depends on RT_USING_CAN
         default n
         help
-            Enable the STM32 bxCAN BSP driver. Configure the selected CAN
-            clock and GPIO alternate functions in the board's CubeMX MSP code.
+            Enable the STM32 FDCAN BSP driver. The current CubeMX MSP
+            configuration provides FDCAN2 on PB12 and PB13.
 
-        if BSP_USING_CAN
-            config BSP_USING_CAN1
-                bool "Enable CAN1"
+        if BSP_USING_FDCAN
+            config BSP_USING_FDCAN2
+                bool "Enable FDCAN2"
                 default y
-
-            config BSP_USING_CAN2
-                bool "Enable CAN2"
-                default n
         endif
 
     menuconfig BSP_USING_UART
@@ -37,7 +33,7 @@ menu "On-chip Peripheral Drivers"
                 
             menuconfig BSP_USING_UART1
                 bool "Enable UART1"
-                default y
+                default n
                 if BSP_USING_UART1
                     config BSP_UART1_RX_USING_DMA
                         bool "Enable UART1 RX DMA"
@@ -70,7 +66,7 @@ menu "On-chip Peripheral Drivers"
 
             menuconfig BSP_USING_UART2
                 bool "Enable UART2"
-                default n
+                default y
                 if BSP_USING_UART2
                     config BSP_UART2_RX_USING_DMA
                         bool "Enable UART2 RX DMA"
@@ -199,39 +195,6 @@ menu "On-chip Peripheral Drivers"
                         depends on RT_USING_SERIAL_V2 && BSP_UART5_RX_USING_DMA
                         default 64                        
                 endif
-
-            menuconfig BSP_USING_UART6
-                bool "Enable UART6"
-                default n
-                if BSP_USING_UART6
-                    config BSP_UART6_RX_USING_DMA
-                        bool "Enable UART6 RX DMA"
-                        select RT_SERIAL_USING_DMA
-                        default n
-
-                    config BSP_UART6_TX_USING_DMA
-                        bool "Enable UART6 TX DMA"
-                        select RT_SERIAL_USING_DMA
-                        default n
-                    
-                    config BSP_UART6_RX_BUFSIZE
-                        int "Set UART6 RX buffer size"
-                        range 64 65535
-                        depends on BSP_USING_UART6
-                        default 256
-
-                    config BSP_UART6_TX_BUFSIZE
-                        int "Set UART6 TX buffer size"
-                        range 0 65535
-                        depends on BSP_USING_UART6
-                        default 0
-
-                    config BSP_UART6_DMA_PING_BUFSIZE
-                        int "Set UART6 RX DMA ping-pong buffer size"
-                        range 32 65535
-                        depends on RT_USING_SERIAL_V2 && BSP_UART6_RX_USING_DMA
-                        default 64    
-                endif
         endif
 
     menuconfig BSP_USING_TIM
@@ -351,13 +314,29 @@ menu "On-chip Peripheral Drivers"
                 default n
         endif
 
+    # RT-Thread maps the STM32H743 QUADSPI peripheral to qspi1.
+    config BSP_USING_QSPI
+        bool "Enable QSPI BUS"
+        select RT_USING_QSPI
+        select RT_USING_SPI
+        default n
+
     menuconfig BSP_USING_ADC
         bool "Enable ADC"
         default n
         select RT_USING_ADC
         if BSP_USING_ADC
+            # RT-Thread's STM32H7 ADC driver supports all three ADC instances.
             config BSP_USING_ADC1
                 bool "Enable ADC1"
+                default n
+
+            config BSP_USING_ADC2
+                bool "Enable ADC2"
+                default n
+
+            config BSP_USING_ADC3
+                bool "Enable ADC3"
                 default n
         endif
 
@@ -427,56 +406,44 @@ menu "On-chip Peripheral Drivers"
         select RT_USING_WDT
         default n
 
-    config BSP_USING_SDIO
+    menuconfig BSP_USING_SDIO
         bool "Enable SDIO"
         select RT_USING_SDIO
         select RT_USING_DFS
         default n
 
-    config SDIO_MAX_FREQ
-        int "sdio max freq"
-        range 0 24000000
-        depends on BSP_USING_SDIO
-        default 1000000
+        if BSP_USING_SDIO
+            # RT-Thread's STM32H7 SDMMC driver requires a concrete controller.
+            config BSP_USING_SDIO1
+                bool "Enable SDMMC1"
+                default y
 
-    config BSP_USING_USBD
-        bool "Enable USB Device"
-        select RT_USING_USB_DEVICE
-        default n
-
-    menuconfig BSP_USING_USBH
-        bool "Enable USB Host"
-        select RT_USING_USB_HOST
-        default n
-        if BSP_USING_USBH
-            menuconfig RT_USBH_MSTORAGE
-                bool "Enable Udisk Drivers"
-                default n
-                if RT_USBH_MSTORAGE
-                    config UDISK_MOUNTPOINT
-                    string "Udisk mount dir"
-                    default "/"
-                endif
-        endif
-
-    menuconfig BSP_USING_PULSE_ENCODER
-        bool "Enable Pulse Encoder"
-        default n
-        select RT_USING_PULSE_ENCODER
-        if BSP_USING_PULSE_ENCODER
-            config BSP_USING_PULSE_ENCODER4
-                bool "Enable Pulse Encoder4"
+            config BSP_USING_SDIO2
+                bool "Enable SDMMC2"
                 default n
 
+            config SDIO_MAX_FREQ
+                int "SDIO maximum frequency"
+                range 400000 25000000
+                default 25000000
         endif
 
-    config BSP_USING_EXT_FMC_IO
-        bool
-        default n
+    # RT-Thread USB device and host drivers share the OTG_FS controller.
+    choice
+        prompt "Select USB OTG_FS mode"
+        optional
 
-    config BSP_USING_FMC
-        bool
-        default n
+        config BSP_USING_USBD
+            bool "Enable USB Device (OTG_FS)"
+            select RT_USING_USB_DEVICE
+            select BSP_USBD_TYPE_FS
+            select BSP_USBD_PHY_EMBEDDED
+
+        config BSP_USING_USBH
+            bool "Enable USB Host (OTG_FS)"
+            select RT_USING_USB_HOST
+    endchoice
+
     rsource "../../Libraries/HAL_Drivers/drivers/Kconfig"
 
 endmenu
