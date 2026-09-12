@@ -8,5 +8,5 @@ TOOLCHAIN_PATHS = {
 }
 
 DOWNLOAD_TOOL_PATHS = {
-    'jlink': '/usr/bin',
+    'jlink': '/usr/bin/JLinkExe',
 }
