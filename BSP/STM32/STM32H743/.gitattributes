@@ -1,0 +1,82 @@
+# Keep STM32H743 sources and project files stable across Windows and Unix hosts.
+* text=auto eol=lf
+
+# C/C++ sources and Arm assembly.
+*.c        text eol=lf diff=cpp
+*.cc       text eol=lf diff=cpp
+*.cpp      text eol=lf diff=cpp
+*.cxx      text eol=lf diff=cpp
+*.h        text eol=lf diff=cpp
+*.hh       text eol=lf diff=cpp
+*.hpp      text eol=lf diff=cpp
+*.s        text eol=lf
+*.S        text eol=lf
+*.asm      text eol=lf
+*.inc      text eol=lf
+
+# Linker scripts, build descriptions, and configuration files.
+*.ld       text eol=lf
+*.sct      text eol=lf
+*.icf      text eol=lf
+*.cmake    text eol=lf
+*.mk       text eol=lf
+*.mak      text eol=lf
+*.py       text eol=lf diff=python
+*.sh       text eol=lf
+*.bat      text eol=lf
+*.cmd      text eol=lf
+CMakeLists.txt text eol=lf
+Kconfig        text eol=lf
+Kconfig.*      text eol=lf
+Makefile       text eol=lf
+SConscript     text eol=lf
+SConstruct     text eol=lf
+
+# STM32CubeMX, Keil, IAR, debugger, and editor project formats.
+*.ioc      text eol=lf
+*.uvproj   text eol=lf
+*.uvprojx  text eol=lf
+*.uvopt    text eol=lf
+*.uvoptx   text eol=lf
+*.ewp      text eol=lf
+*.eww      text eol=lf
+*.ewd      text eol=lf
+*.dbgconf  text eol=lf
+*.launch   text eol=lf
+*.project  text eol=lf
+*.cproject text eol=lf
+*.xml      text eol=lf
+*.json     text eol=lf
+*.yaml     text eol=lf
+*.yml      text eol=lf
+*.md       text eol=lf
+*.txt      text eol=lf
+
+# Prebuilt libraries, firmware images, archives, and media are binary.
+*.a        binary
+*.lib      binary
+*.o        binary
+*.obj      binary
+*.elf      binary
+*.axf      binary
+*.out      binary
+*.bin      binary
+*.hex      binary
+*.srec     binary
+*.mot      binary
+*.pack     binary
+*.flm      binary
+*.zip      binary
+*.7z       binary
+*.gz       binary
+*.png      binary
+*.jpg      binary
+*.jpeg     binary
+*.gif      binary
+*.bmp      binary
+*.ico      binary
+*.pdf      binary
+
+# GitHub Linguist: uppercase extensions in this tree are C sources/headers.
+*.C linguist-language=C
+*.H linguist-language=C
