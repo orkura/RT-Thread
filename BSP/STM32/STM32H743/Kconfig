@@ -1,0 +1,32 @@
+mainmenu "STM32H743 BSP Configuration"
+
+# Current BSP root directory.
+BSP_DIR := .
+
+# Repository root directory.
+PROJECT_DIR := ../../..
+
+# RT-Thread source directory.
+RTT_DIR := $(PROJECT_DIR)/RT-Thread
+
+rsource "../Libraries/Kconfig"
+
+# Select the STM32H7 family and enable the standard RT-Thread application entry.
+config SOC_STM32H743VI
+    bool
+    select SOC_SERIES_STM32H7
+    select RT_USING_COMPONENTS_INIT
+    select RT_USING_USER_MAIN
+    default y
+
+rsource "Applications/Kconfig"
+rsource "Debug/Kconfig"
+
+rsource "$(RTT_DIR)/Kconfig"
+
+if SOC_STM32H743VI && !RT_USING_NANO
+rsource "Board/Kconfig"
+endif
+
+# BSP-specific components own their Kconfig entries through this aggregator.
+rsource "Components/Kconfig"

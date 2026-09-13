@@ -1,0 +1,96 @@
+import os
+import re
+
+from building import *
+
+Import('rtconfig')
+
+cwd = GetCurrentDir()
+board_root = os.path.dirname(cwd)
+hal_root = os.path.join(cwd, 'STM32H7xx_HAL_Driver')
+hal_src_root = os.path.join(hal_root, 'Src')
+hal_config = os.path.join(board_root, 'Core', 'Inc', 'stm32h7xx_hal_conf.h')
+
+if not os.path.isdir(hal_src_root):
+    raise FileNotFoundError('Missing STM32H7 HAL source directory: ' +
+                            hal_src_root)
+
+if not os.path.isfile(hal_config):
+    raise FileNotFoundError('Missing CubeMX HAL configuration: ' + hal_config)
+
+# Use the CubeMX HAL configuration as the source of truth. Regenerating
+# stm32h7xx_hal_conf.h automatically updates the HAL modules built here.
+with open(hal_config, 'r', encoding='utf-8') as config_file:
+    config_text = config_file.read()
+
+enabled_modules = set(re.findall(
+    r'^\s*#define\s+HAL_([A-Z0-9]+)_MODULE_ENABLED\b',
+    config_text,
+    re.MULTILINE,
+))
+
+src = [os.path.join('STM32H7xx_HAL_Driver', 'Src', 'stm32h7xx_hal.c')]
+
+for module in sorted(enabled_modules):
+    prefix = 'stm32h7xx_hal_' + module.lower()
+    module_source = prefix + '.c'
+    extension_prefix = prefix + '_'
+    module_sources = [
+        os.path.join('STM32H7xx_HAL_Driver', 'Src', name)
+        for name in os.listdir(hal_src_root)
+        if ((name == module_source or name.startswith(extension_prefix))
+            and name.endswith('.c')
+            and not name.endswith('_template.c'))
+    ]
+
+    if not module_sources:
+        raise FileNotFoundError('Missing HAL source for module: ' + module)
+
+    src.extend(module_sources)
+
+# Some HAL modules use low-level implementation files that are not selected
+# directly by stm32h7xx_hal_conf.h.
+ll_dependencies = {
+    'HCD': ['stm32h7xx_ll_usb.c'],
+    'PCD': ['stm32h7xx_ll_usb.c'],
+    'SD': ['stm32h7xx_ll_sdmmc.c', 'stm32h7xx_ll_delayblock.c'],
+    'MMC': ['stm32h7xx_ll_sdmmc.c'],
+    'SDIO': ['stm32h7xx_ll_sdmmc.c'],
+    'QSPI': ['stm32h7xx_ll_delayblock.c'],
+    'SRAM': ['stm32h7xx_ll_fmc.c'],
+    'NOR': ['stm32h7xx_ll_fmc.c'],
+    'NAND': ['stm32h7xx_ll_fmc.c'],
+    'SDRAM': ['stm32h7xx_ll_fmc.c'],
+}
+
+for module, files in ll_dependencies.items():
+    if module in enabled_modules:
+        src.extend(os.path.join('STM32H7xx_HAL_Driver', 'Src', name)
+                   for name in files)
+
+src = sorted(set(src))
+
+CPPPATH = [
+    os.path.join(board_root, 'Core', 'Inc'),
+    os.path.join(hal_root, 'Inc'),
+    os.path.join(hal_root, 'Inc', 'Legacy'),
+    os.path.join(cwd, 'CMSIS', 'Core', 'Include'),
+    os.path.join(cwd, 'CMSIS', 'Device', 'ST', 'STM32H7xx', 'Include'),
+]
+
+# Keep vendor compatibility warnings local to the STM32 HAL sources. BSP code,
+# components and packages retain the global GCC warning policy.
+LOCAL_CFLAGS = ''
+if rtconfig.PLATFORM == 'gcc':
+    LOCAL_CFLAGS = ' -Wno-unused-parameter'
+
+group = DefineGroup(
+    'STM32H7 HAL',
+    src,
+    depend=['SOC_STM32H743VI'],
+    CPPPATH=CPPPATH,
+    CPPDEFINES=['USE_HAL_DRIVER'],
+    LOCAL_CFLAGS=LOCAL_CFLAGS,
+)
+
+Return('group')

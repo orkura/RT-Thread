@@ -1,0 +1,30 @@
+import os
+
+from building import *
+
+Import('BSP_ROOT')
+Import('rtconfig')
+
+cwd = GetCurrentDir()
+variant_root = os.path.join(BSP_ROOT, rtconfig.BUILD_OUTPUT_DIR,
+                            'project', 'applications')
+src = Glob('*.c')
+LOCAL_CPPPATH = [cwd]
+
+# Keep root-level application headers private to this source group. Feature
+# directories export their own public include paths through their SConscript.
+group = DefineGroup('Applications', src, depend=[''], LOCAL_CPPPATH=LOCAL_CPPPATH)
+
+# A feature directory owns its sources and private include paths through its
+# own SConscript. This keeps the application build description scalable while
+# avoiding an unrestricted recursive source glob.
+for item in sorted(os.listdir(cwd)):
+    script = os.path.join(cwd, item, 'SConscript')
+    if os.path.isfile(script):
+        group += SConscript(
+            script,
+            variant_dir=os.path.join(variant_root, item),
+            duplicate=0,
+        )
+
+Return('group')
