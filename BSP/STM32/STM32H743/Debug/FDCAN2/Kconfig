@@ -1,0 +1,7 @@
+config BSP_USING_FDCAN2_DEBUG
+    bool "Enable FDCAN2 FinSH debug command"
+    depends on BSP_USING_FDCAN2 && RT_USING_CAN && RT_CAN_USING_CANFD
+    depends on RT_USING_FINSH && FINSH_USING_MSH
+    depends on FINSH_USING_OPTION_COMPLETION
+    depends on RT_USING_SEMAPHORE
+    default n

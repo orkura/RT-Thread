@@ -9,6 +9,9 @@
 
 /* Debug */
 
+#define BSP_USING_FDCAN2_DEBUG
+/* end of Debug */
+
 /* RT-Thread Kernel */
 
 /* klibc options */
@@ -80,10 +83,10 @@
 #define RT_HOOK_USING_FUNC_PTR
 #define RT_USING_IDLE_HOOK
 #define RT_IDLE_HOOK_LIST_SIZE 4
-#define IDLE_THREAD_STACK_SIZE 256
+#define IDLE_THREAD_STACK_SIZE 1024
 #define RT_USING_TIMER_SOFT
 #define RT_TIMER_THREAD_PRIO 4
-#define RT_TIMER_THREAD_STACK_SIZE 512
+#define RT_TIMER_THREAD_STACK_SIZE 1024
 
 /* kservice options */
 
@@ -112,7 +115,7 @@
 #define RT_USING_DEVICE
 #define RT_USING_CONSOLE
 #define RT_CONSOLEBUF_SIZE 128
-#define RT_CONSOLE_DEVICE_NAME "uart1"
+#define RT_CONSOLE_DEVICE_NAME "uart2"
 #define RT_VER_NUM 0x50201
 #define RT_BACKTRACE_LEVEL_MAX_NR 32
 /* end of RT-Thread Kernel */
@@ -141,7 +144,7 @@
 #define FINSH_CMD_SIZE 80
 #define MSH_USING_BUILT_IN_COMMANDS
 #define FINSH_USING_DESCRIPTION
-#define FINSH_ARG_MAX 10
+#define FINSH_ARG_MAX 12
 #define FINSH_USING_OPTION_COMPLETION
 
 /* DFS: device virtual file system */
