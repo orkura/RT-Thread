@@ -921,6 +921,7 @@ static int can1_debug_loopback_command(int argc, char **argv)
         tx_message.rtr = RT_CAN_DTR;
         tx_message.len = 8U;
         tx_message.hdr_index = -1;
+        tx_message.nonblocking = 1;
         for (byte_index = 0; byte_index < tx_message.len; byte_index++)
         {
             tx_message.data[byte_index] =
