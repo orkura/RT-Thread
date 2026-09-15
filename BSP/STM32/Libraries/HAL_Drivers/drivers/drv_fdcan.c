@@ -123,7 +123,6 @@ static uint32_t _inline_get_DataBaudIndex(uint32_t baud_rate)
 static rt_err_t _inline_can_config(struct rt_can_device *can, struct can_configure *cfg)
 {
     stm32_fdcan_t *pdrv_can;
-    rt_uint32_t tmp_u32Index;
 
     RT_ASSERT(can);
     RT_ASSERT(cfg);
