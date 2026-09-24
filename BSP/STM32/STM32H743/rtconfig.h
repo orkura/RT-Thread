@@ -262,6 +262,7 @@
 #define BSP_STM32_UART_V1_TX_TIMEOUT 2000
 #define BSP_USING_UART2
 #define BSP_USING_SDIO
+#define BSP_USING_SDIO1
 #define BSP_USING_SDIO2
 #define SDIO_MAX_FREQ 20000000
 /* end of On-chip Peripheral Drivers */
