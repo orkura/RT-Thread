@@ -1,0 +1,52 @@
+# Kconfig file for CANopenNode RT-Thread port.
+
+menuconfig PKG_USING_CANOPENNODE
+    bool "CANopenNode: CANopen protocol stack"
+    default n
+    select RT_USING_HEAP
+    select RT_USING_DEVICE
+    select RT_USING_CAN
+    select RT_USING_MUTEX
+    select RT_USING_SEMAPHORE
+    help
+        Enable the CANopenNode RT-Thread package wrapper. The package expects
+        CANopenNode to be available as a git submodule named CANopenNode in the
+        package root directory. The RT-Thread application wrapper uses
+        semaphores for realtime wakeup and a lifecycle mutex to serialize
+        communication reset with the realtime worker while CANopen objects are
+        deleted and recreated.
+
+if PKG_USING_CANOPENNODE
+
+rsource "port/rtthread/Kconfig"
+
+rsource "core/Kconfig"
+
+rsource "profile/Kconfig"
+
+rsource "demo/Kconfig"
+
+config PKG_CANOPENNODE_PATH
+    string
+    default "/packages/misc/CanopenNode"
+
+choice
+    prompt "Version"
+    default PKG_USING_CANOPENNODE_V100
+    help
+        Select the CANopenNode package version.
+
+    config PKG_USING_CANOPENNODE_V100
+        bool "v1.0.0"
+
+    config PKG_USING_CANOPENNODE_LATEST_VERSION
+        bool "latest"
+endchoice
+
+config PKG_CANOPENNODE_VER
+    string
+    default "v1.0.0" if PKG_USING_CANOPENNODE_V100
+    default "latest" if PKG_USING_CANOPENNODE_LATEST_VERSION
+
+
+endif

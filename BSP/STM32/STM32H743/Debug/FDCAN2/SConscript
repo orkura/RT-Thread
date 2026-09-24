@@ -1,0 +1,12 @@
+from building import *
+
+cwd = GetCurrentDir()
+src = Glob('*.c')
+
+group = DefineGroup(
+    'FDCAN2 Debug',
+    src,
+    depend=['BSP_USING_FDCAN2_DEBUG']
+)
+
+Return('group')
