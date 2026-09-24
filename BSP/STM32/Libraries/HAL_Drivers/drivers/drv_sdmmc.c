@@ -27,7 +27,6 @@
 #endif /* DRV_DEBUG */
 #include <rtdbg.h>
 
-static struct stm32_sdio_class sdio_obj;
 static struct rt_mmcsd_host *host1;
 static struct rt_mmcsd_host *host2;
 
@@ -371,7 +370,6 @@ static void rthw_sdio_request(struct rt_mmcsd_host *host, struct rt_mmcsd_req *r
   */
 static void rthw_sdio_iocfg(struct rt_mmcsd_host *host, struct rt_mmcsd_io_cfg *io_cfg)
 {
-    rt_uint32_t temp, clk_src;
     rt_uint32_t clk = io_cfg->clock;
     struct rthw_sdio *sdio = host->private_data;
     SD_HandleTypeDef *hsd = &sdio->sdio_des.hw_sdio;
