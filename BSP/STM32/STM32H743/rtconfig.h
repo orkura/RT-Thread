@@ -72,7 +72,7 @@
 
 /* end of rt_strnlen options */
 /* end of klibc options */
-#define RT_NAME_MAX 12
+#define RT_NAME_MAX 16
 #define RT_CPUS_NR 1
 #define RT_ALIGN_SIZE 8
 #define RT_THREAD_PRIORITY_32
@@ -156,6 +156,22 @@
 #define RT_USING_DFS_V1
 #define DFS_FILESYSTEMS_MAX 4
 #define DFS_FILESYSTEM_TYPES_MAX 4
+#define RT_USING_DFS_ELMFAT
+
+/* elm-chan's FatFs, Generic FAT Filesystem Module */
+
+#define RT_DFS_ELM_CODE_PAGE 437
+#define RT_DFS_ELM_WORD_ACCESS
+#define RT_DFS_ELM_USE_LFN_3
+#define RT_DFS_ELM_USE_LFN 3
+#define RT_DFS_ELM_LFN_UNICODE_0
+#define RT_DFS_ELM_LFN_UNICODE 0
+#define RT_DFS_ELM_MAX_LFN 255
+#define RT_DFS_ELM_DRIVES 2
+#define RT_DFS_ELM_MAX_SECTOR_SIZE 512
+#define RT_DFS_ELM_REENTRANT
+#define RT_DFS_ELM_MUTEX_TIMEOUT 3000
+/* end of elm-chan's FatFs, Generic FAT Filesystem Module */
 #define RT_USING_DFS_DEVFS
 /* end of DFS: device virtual file system */
 
@@ -173,6 +189,19 @@
 #define RT_CANSND_BOX_NUM 1
 #define RT_CANSND_MSG_TIMEOUT 100
 #define RT_CAN_NB_TX_FIFO_SIZE 256
+#define RT_USING_SDIO
+#define RT_SDIO_STACK_SIZE 512
+#define RT_SDIO_THREAD_PRIORITY 15
+#define RT_MMCSD_STACK_SIZE 1024
+#define RT_MMCSD_THREAD_PRIORITY 22
+#define RT_MMCSD_MAX_PARTITION 16
+#define RT_USING_BLK
+
+/* Partition Types */
+
+#define RT_BLK_PARTITION_DFS
+#define RT_BLK_PARTITION_EFI
+/* end of Partition Types */
 #define RT_USING_PIN
 /* end of Device Drivers */
 
@@ -232,6 +261,9 @@
 #define BSP_USING_UART
 #define BSP_STM32_UART_V1_TX_TIMEOUT 2000
 #define BSP_USING_UART2
+#define BSP_USING_SDIO
+#define BSP_USING_SDIO2
+#define SDIO_MAX_FREQ 20000000
 /* end of On-chip Peripheral Drivers */
 /* end of Hardware Drivers */
 

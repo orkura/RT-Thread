@@ -1,6 +1,7 @@
 #ifndef __BOARD_H__
 #define __BOARD_H__
 
+#include <rtconfig.h>
 #include "stm32h7xx_hal.h"
 
 #ifdef __cplusplus
