@@ -1,0 +1,5 @@
+using "platforms/cpus/stm32h743.repl"
+
+// First include STM32H743SDMMC.cs in the Renode Monitor.
+sdmmc2: SD.STM32H743SDMMC @ sysbus 0x48022400
+    IRQ -> nvic@124
