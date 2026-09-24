@@ -1,0 +1,12 @@
+using "platforms/cpus/stm32h743.repl"
+
+// Unregister the inherited SD-only controller and disconnect its IRQ.
+sdmmc: @ none
+    IRQ -> none
+
+// Include both custom C# models before loading this platform.
+sdmmc1: SD.STM32H743EMMC @ sysbus 0x52007000
+    IRQ -> nvic@49
+
+sdmmc2: SD.STM32H743SDMMC @ sysbus 0x48022400
+    IRQ -> nvic@124

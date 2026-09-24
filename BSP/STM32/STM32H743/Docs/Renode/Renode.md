@@ -1,6 +1,6 @@
 # Renode 仿真测试使用手册
 
-本文记录 STM32H743 BSP 的 Renode 启动、SD 卡读写、双机 FDCAN 通信和日志采集方法。
+本文记录 STM32H743 BSP 的 Renode 启动、SD 卡读写、eMMC + SD 双存储、双机 FDCAN 通信和日志采集方法。
 
 ## 1. 环境与输入窗口
 
@@ -20,7 +20,7 @@
 & "D:\App\Code\renode\renode.exe" --console
 ```
 
-`showAnalyzer sysbus.usart2` 会打开独立串口窗口。不要让两个 Renode 实例同时以可写方式使用同一个 SD 卡镜像。
+`showAnalyzer sysbus.usart2` 会打开独立串口窗口。不要让两个 Renode 实例同时以可写方式使用同一个存储镜像。eMMC 与 SD 卡也必须使用不同的镜像文件。
 
 ## 2. 文件与固件准备
 
@@ -31,6 +31,10 @@
 | `Config/renode/STM32H743SDMMC.cs` | 本项目的 SDMMC2 功能仿真模型 |
 | `Config/renode/stm32h743-sdmmc2.repl` | 继承官方 H743 平台，添加 SDMMC2，地址 `0x48022400`，IRQ 124 |
 | `Build/renode/sdcard.img` | 已创建的 64 MiB FAT32 镜像；整盘文件系统，无 MBR 分区表 |
+| `Config/renode/STM32H743EMMC.cs` | SDMMC1 + eMMC 用户区功能模型，直接读写独立原始镜像 |
+| `Config/renode/stm32h743-emmc-sd.repl` | 用自定义 eMMC 控制器替换官方 SDMMC1，同时接入 SDMMC2 |
+| `Config/renode/stm32h743-emmc-sd.resc` | 双存储加载脚本；执行后仍需手动 `start` |
+| `Build/renode/emmc.img` | 本次创建的 64 MiB 空白 eMMC 镜像，首次使用需格式化 |
 | `Build/scons/rt-thread.elf` | SCons 生成的待测固件 |
 | `Build/renode/sdmmc-debug.log` | 按第 6 节命令生成的诊断日志 |
 
@@ -53,6 +57,8 @@
 当前 FatFs 使用 512 字节扇区、堆上长文件名缓冲区、线程安全模式；未启用 exFAT。通过配置工具同步 `.config` 与 `rtconfig.h` 后重新构建。修改 `RT_NAME_MAX` 会影响对象结构布局，需要完整重编译相关固件源码。
 
 ## 3. 单机 SD 卡仿真
+
+当前双控制器固件建议使用第 9 节。以下旧平台只给 SDMMC2 挂接 SD 卡；若固件仍启用 SDMMC1，不能据此验证 eMMC，未挂卡的控制器可能出现探测超时。
 
 ### 3.1 首次加载
 
@@ -322,7 +328,7 @@ logLevel 1 file
 
 上述检查不等于完整 Renode 中的文件系统测试通过。自定义模型的实际识卡、挂载、文件读写、重启后持久化及双机 FDCAN 收发，需要执行本文步骤并保存结果。真实开发板的电气、时序、DMA/Cache 一致性仍需上板验证。
 
-另一个独立问题是固件 `drv_sdmmc.c` 当前仍按初始化频率计算分频；`SDIO_MAX_FREQ=20000000` 不能据此视为已实现 20 MHz 传输。仿真读写成功也不能证明实际卡时钟正确。
+当前固件使用 `Board/drv_sdmmc_h743.c`，已按请求频率计算分频，并为 SDMMC1/2 分别分配 4 KiB 缓冲区及执行对应范围的 Cache 维护。Renode 功能模型不按分频值推进数据传输，读写成功不能证明实际卡时钟、DMA/Cache 一致性或双控制器并发正确；这些仍需实机验证。
 
 ### SPI + Flash 状态
 
@@ -330,8 +336,149 @@ logLevel 1 file
 
 后续需按实际 Flash 型号、SPI 实例和片选引脚补充模型连接，启用 SPI 与相应 Flash 驱动，再验证芯片 ID、擦除、写入和读回。平台中的 `externalFlash: Memory.MappedMemory` 不能作为 SPI Flash 命令协议测试的替代。
 
-## 9. 参考资料
+## 9. eMMC + SD 双存储仿真
+
+### 9.1 模型与固件要求
+
+| 控制器 | 模型 | 地址 / IRQ | 镜像 |
+| --- | --- | --- | --- |
+| SDMMC1 | `STM32H743EMMC` | `0x52007000` / 49 | `Build/renode/emmc.img` |
+| SDMMC2 | `STM32H743SDMMC` | `0x48022400` / 124 | `Build/renode/sdcard.img` |
+
+新 `.repl` 将官方继承的 `sdmmc` 取消总线注册并断开 IRQ，再以 `sdmmc1` 名称注册新模型，避免地址和中断冲突。它不修改 Renode 安装目录中的平台，也不影响旧的 SD 单卡配置。
+
+在第 2 节配置基础上，双存储固件还需启用：
+
+```c
+#define BSP_USING_SDIO1
+#define BSP_SDIO1_USING_8_BIT
+```
+
+同时保留 `BSP_USING_SDIO2`。当前工程配置已启用这三项。板级驱动负责 SDMMC1 的 eMMC MSP 初始化、8 位总线能力和时钟切换。
+
+eMMC 模型实现 CMD0/1/2/3/6/7/8/9/12/13/16/17/18/24/25 所需的用户区流程：OCR、CID/CSD、512 字节 EXT_CSD、1/4/8 位 SDR 切换、单缓冲 IDMA 和完成中断。SDIO/SD 探测命令返回超时，使协议栈继续探测 MMC；不支持的命令或配置显式返回错误。
+
+模型通过 EXT_CSD 的 `SEC_COUNT` 报告镜像实际容量。本例为 64 MiB，不模拟物理芯片的完整 8 GB 容量。CMD6 只支持 `BUS_WIDTH` 和 `HS_TIMING` 的 SDR 切换；未实现擦除/trim、启动分区、RPMB、卡内 Cache、DDR、HS200/HS400、调谐及精确时序。外部镜像会被直接修改，不能用 Renode 快照恢复镜像历史内容。
+
+### 9.2 镜像准备
+
+本次已创建独立的 `Build/renode/emmc.img`，容量 64 MiB，内容全零，尚无文件系统。原有 `sdcard.img` 不变。首次运行可直接进入第 9.3 节。
+
+重新检出工程或清理 `Build` 后，在 PowerShell 中创建空白 eMMC 镜像：
+
+```powershell
+$emmcImage = "F:/Project/RT-Thread_Env/RT-Thread/BSP/STM32/STM32H743/Build/renode/emmc.img"
+[System.IO.Directory]::CreateDirectory([System.IO.Path]::GetDirectoryName($emmcImage)) | Out-Null
+$emmcFile = [System.IO.File]::Open($emmcImage, [System.IO.FileMode]::CreateNew, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
+try { $emmcFile.SetLength(64MB) } finally { $emmcFile.Dispose() }
+```
+
+`CreateNew` 在文件已存在时会拒绝执行，避免覆盖已保存的数据。eMMC 的 `LoadImage` 也不会创建或格式化文件，只接受已有、长度为 512 字节整数倍的可写原始镜像。还需准备独立的 64 MiB `sdcard.img` 和构建好的 ELF；脚本不会自动生成这两个输入。
+
+### 9.3 加载双存储平台
+
+由用户启动一个新的 Renode 进程，在 Monitor 中执行：
+
+```text
+include @F:/Project/RT-Thread_Env/RT-Thread/BSP/STM32/STM32H743/Config/renode/stm32h743-emmc-sd.resc
+start
+```
+
+脚本会导入两个 C# 模型、创建 `STM32H743_EMMC_SD`、加载平台、挂接两份镜像、加载 ELF 并打开 USART2 串口窗口。脚本本身不启动运行，也不清除会话中已有机器。不要在同一会话反复导入；模型变化时重启 Renode。
+
+若脚本提示找不到文件或类型，先解决加载错误再 `start`。成功启动后，串口应先后出现 eMMC 容量信息和 SD 卡识别信息，随后用 `list_device` 确认两个块设备均已注册。仅出现 RT-Thread 横幅不算双存储测试通过。
+
+### 9.4 首次格式化与分别读写
+
+板级驱动按控制器固定主机名，设备名称不依赖识别先后顺序：
+
+| 存储 | 主机 / 整盘设备名 | 本例挂载设备 |
+| --- | --- | --- |
+| SDMMC1 eMMC | `emmc` | `emmc0` |
+| SDMMC2 SD 卡 | `sd` | `sd0` |
+
+本例镜像没有分区表，块设备层会为整盘创建编号 0 的分区设备。若换用有分区表的镜像，应根据实际分区选择设备。结合启动日志和 `list_device` 确认 `emmc0`、`sd0` 均已注册，再继续挂载测试。
+
+旧驱动两个主机都沿用默认名 `sd`，会重复注册 `sd` 和 `sd0`，出现 `Put partition.(null)[0] ... error = ERROR`。其中 `(null)` 表示未指定分区表类型；该次错误来自设备重名，不能通过格式化解决。修复命名后须重新编译并复位加载 ELF，原有镜像可继续使用。
+
+在 FinSH 中执行：
+
+```text
+list_device
+```
+
+只有在确认 `emmc0` 对应本次新建的空白 eMMC 镜像时，首次执行以下格式化命令。格式化会清除该设备原有文件；之后的重启测试无需再次执行。`sd0` 是原有 SD 卡，不需要重新格式化。
+
+```text
+mkfs -t elm emmc0
+```
+
+将 eMMC 挂到根目录，并把原有 SD 卡挂到其下的目录：
+
+```text
+mount emmc0 / elm
+mkdir /sdcard
+mount sd0 /sdcard elm
+
+echo "eMMC storage test." /emmc_test.txt
+echo "SD storage test." /sdcard/sd_test.txt
+cat /emmc_test.txt
+cat /sdcard/sd_test.txt
+df /
+df /sdcard
+```
+
+若 `/sdcard` 已存在，跳过 `mkdir`。`echo` 为追加写，重复执行会重复追加。上述两条路径应读出各自内容，不能只检查命令没有报错。本例无需 ROMFS/RAMFS 根文件系统，`/` 属于 eMMC，`/sdcard` 属于 SD 卡。
+
+这组顺序读写用于基本功能验证，不等于两个线程同时读写通过。板级驱动的独立缓冲区并发验证还需要专门的双线程压力测试及实机测试。
+
+### 9.5 复位和持久化检查
+
+先在 FinSH 按子挂载点到根目录的顺序卸载：
+
+```text
+umount /sdcard
+umount /
+```
+
+确认卸载成功后，在 Monitor 中执行：
+
+```text
+pause
+machine Reset
+sysbus LoadELF @F:/Project/RT-Thread_Env/RT-Thread/BSP/STM32/STM32H743/Build/scons/rt-thread.elf
+start
+```
+
+复位后在 FinSH 重新挂载两张卡并 `cat` 两个测试文件，无需再次 `mkfs`。再退出并重新启动 Renode，加载同一脚本、重新挂载、读取文件，验证数据已写入两份主机镜像。eMMC 始终持久化写入；SD 卡脚本参数 `true` 同样启用持久化。
+
+### 9.6 日志与验证范围
+
+第 6 节的日志方法可以沿用，双存储平台额外启用 SDMMC1 记录：
+
+```text
+pause
+logFile @F:/Project/RT-Thread_Env/RT-Thread/BSP/STM32/STM32H743/Build/renode/emmc-sd-debug.log
+logLevel -1 file
+sysbus LogPeripheralAccess sysbus.sdmmc1 true
+sysbus LogPeripheralAccess sysbus.sdmmc2 true
+machine Reset
+sysbus LoadELF @F:/Project/RT-Thread_Env/RT-Thread/BSP/STM32/STM32H743/Build/scons/rt-thread.elf
+start
+```
+
+重点查看 eMMC 的 CMD1、CMD8 数据传输、`EXT_CSD[183] = 2`（8 位）、`EXT_CSD[185] = 1`（SDR 高速）及 IDMA 日志中的 `width=8`。无数据阶段的 SD CMD8 探测和 CMD55 超时属于预期；真正的 MMC 初始化及块读写不应持续失败。
+
+本次已完成本机 Renode 1.17 程序集编译检查，以及 129 项使用模拟内存总线的寄存器/协议断言，覆盖识卡、CSD/EXT_CSD、8 位切换、IRQ、单块/多块读写、独立镜像、越界/非法模式拒绝、复位及重新挂接后的数据保留。测试文件保存在被 Git 忽略的 `Build/emmc-validation/` 中。
+
+用户提供的 Renode 运行日志已确认双存储平台可加载，固件进入 FinSH，eMMC 和 SD 卡均报告 65536 KB 容量。修复 CMD6 参数处理并将 `RT_MMCSD_STACK_SIZE` 增至 4096 后，该次日志中未再出现总线宽度切换失败或检测线程栈溢出；完整日志及线程栈水位仍需后续检查。
+
+随后暴露的 `sd` / `sd0` 重名问题已在板级主机命名处修正。新固件中的双设备注册、格式化、挂载、文件读写及重启后持久化仍需按上述步骤实际验证。上述模型检查和仿真结果不能代替真实开发板验证。
+
+## 10. 参考资料
 
 - [Renode Monitor 和脚本语法](https://renode.readthedocs.io/en/latest/basic/monitor-syntax.html)
 - [Renode 日志配置](https://renode.readthedocs.io/en/latest/basic/logger.html)
 - [Renode 多机器操作](https://renode.readthedocs.io/en/latest/basic/machines.html)
+
+- [Renode 平台继承、取消注册与中断连接语法](https://renode.readthedocs.io/en/latest/advanced/platform_description_format.html)
