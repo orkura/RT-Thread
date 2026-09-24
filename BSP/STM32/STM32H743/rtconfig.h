@@ -263,6 +263,7 @@
 #define BSP_USING_UART2
 #define BSP_USING_SDIO
 #define BSP_USING_SDIO1
+#define BSP_SDIO1_USING_8_BIT
 #define BSP_USING_SDIO2
 #define SDIO_MAX_FREQ 20000000
 /* end of On-chip Peripheral Drivers */

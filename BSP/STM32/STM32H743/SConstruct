@@ -83,10 +83,29 @@ if rtconfig.PLATFORM == 'armcc':
 # No BSP-specific library variant is required for SDK distribution.
 rtconfig.BSP_LIBRARY_TYPE = None
 
-# include common STM32 drivers
-objs.extend(SConscript(os.path.join(LIBRARIES_ROOT, 'HAL_Drivers', 'SConscript'),
-                       variant_dir=os.path.join(BUILD_OUTPUT_DIR, 'libraries', 'HAL_Drivers'),
-                       duplicate=0))
+# Include common STM32 drivers, replacing only SDMMC with the H743 board copy.
+common_drivers = SConscript(
+    os.path.join(LIBRARIES_ROOT, 'HAL_Drivers', 'SConscript'),
+    variant_dir=os.path.join(BUILD_OUTPUT_DIR, 'libraries', 'HAL_Drivers'),
+    duplicate=0,
+)
+
+if GetDepend('BSP_USING_SDIO'):
+    shared_sdmmc = os.path.normcase(os.path.join(
+        LIBRARIES_ROOT, 'HAL_Drivers', 'drivers', 'drv_sdmmc.c'))
+
+    def is_shared_sdmmc(source):
+        return os.path.normcase(source.srcnode().abspath) == shared_sdmmc
+
+    common_drivers = [src for src in common_drivers if not is_shared_sdmmc(src)]
+    # Projects also drives local compiler flags and IDE project generation.
+    # Removing only the returned source list would still compile both drivers.
+    for project_group in Projects:
+        project_group['src'] = [
+            src for src in project_group['src'] if not is_shared_sdmmc(src)
+        ]
+
+objs.extend(common_drivers)
 
 # make a building
 env.Depends(TARGET, os.path.join(BSP_ROOT, rtconfig.LINK_SCRIPT))

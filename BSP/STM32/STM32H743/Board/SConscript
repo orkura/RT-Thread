@@ -13,6 +13,9 @@ src = [
     os.path.join('Core', 'Src', 'system_stm32h7xx.c'),
 ]
 
+if GetDepend('BSP_USING_SDIO'):
+    src.append('drv_sdmmc_h743.c')
+
 startup_files = {
     'gcc': os.path.join('Startup', 'GCC', 'Startup.s'),
     'armcc': os.path.join('Startup', 'MDK-ARM', 'Startup.s'),
