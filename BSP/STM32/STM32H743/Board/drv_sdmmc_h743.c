@@ -587,6 +587,8 @@ struct rt_mmcsd_host *sdio_host_create(struct stm32_sdio_des *sdio_des)
 #ifdef BSP_USING_SDIO1
     if(sdio_des->hw_sdio.Instance == SDMMC1)
     {
+        /* Block devices inherit this name; each controller needs its own. */
+        rt_strncpy(host->name, "emmc", sizeof(host->name) - 1);
         sdio->cache_buf = sdmmc1_cache_buf;
         rt_event_init(&sdio->event, "sdio1", RT_IPC_FLAG_FIFO);
         rt_mutex_init(&sdio->mutex, "sdio1", RT_IPC_FLAG_PRIO);
@@ -595,6 +597,7 @@ struct rt_mmcsd_host *sdio_host_create(struct stm32_sdio_des *sdio_des)
 #ifdef BSP_USING_SDIO2
     if(sdio_des->hw_sdio.Instance == SDMMC2)
     {
+        rt_strncpy(host->name, "sd", sizeof(host->name) - 1);
         sdio->cache_buf = sdmmc2_cache_buf;
         rt_event_init(&sdio->event, "sdio2", RT_IPC_FLAG_FIFO);
         rt_mutex_init(&sdio->mutex, "sdio2", RT_IPC_FLAG_PRIO);
