@@ -418,6 +418,15 @@ menu "On-chip Peripheral Drivers"
                 bool "Enable SDMMC1"
                 default y
 
+            config BSP_SDIO1_USING_8_BIT
+                bool "Enable SDMMC1 8-bit bus (eMMC)"
+                depends on BSP_USING_SDIO1
+                default y
+                help
+                    The onboard eMMC connects all eight data lines to SDMMC1.
+                    Disable this option when using a 1-bit or 4-bit device.
+                    SDMMC2 remains configured for the 4-bit SD card interface.
+
             config BSP_USING_SDIO2
                 bool "Enable SDMMC2"
                 default n

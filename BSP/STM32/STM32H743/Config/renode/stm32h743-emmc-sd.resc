@@ -1,0 +1,11 @@
+# Run in a fresh Renode session. Does not create or format disk images.
+# Paths match this workstation; adjust them if the workspace moves.
+include @F:/Project/RT-Thread_Env/RT-Thread/BSP/STM32/STM32H743/Config/renode/STM32H743SDMMC.cs
+include @F:/Project/RT-Thread_Env/RT-Thread/BSP/STM32/STM32H743/Config/renode/STM32H743EMMC.cs
+mach create "STM32H743_EMMC_SD"
+machine LoadPlatformDescription @F:/Project/RT-Thread_Env/RT-Thread/BSP/STM32/STM32H743/Config/renode/stm32h743-emmc-sd.repl
+sysbus.sdmmc1 LoadImage @F:/Project/RT-Thread_Env/RT-Thread/BSP/STM32/STM32H743/Build/renode/emmc.img
+machine SdCardFromFile @F:/Project/RT-Thread_Env/RT-Thread/BSP/STM32/STM32H743/Build/renode/sdcard.img sysbus.sdmmc2 0x4000000 true
+sysbus LoadELF @F:/Project/RT-Thread_Env/RT-Thread/BSP/STM32/STM32H743/Build/scons/rt-thread.elf
+showAnalyzer sysbus.usart2
+# Inspect the configuration, then enter `start` in the Monitor.
