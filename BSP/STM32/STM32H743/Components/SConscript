@@ -15,4 +15,19 @@ objs = []
 #                        variant_dir=os.path.join(variant_root, 'MotorControl'),
 #                        duplicate=0))
 
+# Register the CANopenNode RT-Thread component explicitly.
+canopennode_script = os.path.join(cwd, 'canopennode-rtt', 'SConscript')
+if not os.path.isfile(canopennode_script):
+    raise FileNotFoundError(
+        'Missing component SConscript: ' + canopennode_script
+    )
+
+objs.extend(
+    SConscript(
+        canopennode_script,
+        variant_dir=os.path.join(variant_root, 'canopennode-rtt'),
+        duplicate=0,
+    )
+)
+
 Return('objs')
